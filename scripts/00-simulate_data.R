@@ -1,12 +1,12 @@
 #### Preamble ####
-# Purpose: Simulates a dataset of Australian electoral divisions, including the 
+# Purpose: Simulate datasets for pomegranate, watermelon and rain data
   #state and party that won each division.
-# Author: Bo Tang, Yiyi Feng, Mingjing Zhan
-# Date: 2 November 2024
-# Contact: qinghe.tang@mail.utoronto.ca, yiyi.feng@mail.utoronto.ca, mingjin.zhan@mail.utoronto.ca
+# Author: Yiyi Feng
+# Date: 27 November 2024
+# Contact: yiyi.feng@mail.utoronto.ca
 # License: MIT
 # Pre-requisites: The `tidyverse`, arrow` package must be installed
-# Any other information needed? Make sure you are in the `Insights and Predictions for the U.S. Election` rproj
+# Any other information needed?
 
 
 #### Workspace setup ####
@@ -15,81 +15,109 @@ library(arrow)
 
 set.seed(333)
 
-
-#### Simulate data ####
-#observation numbers
-n <- 1000
-
-#simulating poll_id
-poll_id <- 1:1000
-
-#simulating pollster_id
-pollster_id <- sample(1:100, 1000, replace = TRUE)
-
-#simulating numeric_grade and pollscore
-pollster_score <- data.frame(
-  pollster_id = 1:100,
-  numeric_grade = round(runif(100, min = 0, max = 3), 1),
-  pollscore = round(runif(100, min = -2, max = 0), 1)
+# Create the simulate_rain data frame
+simulated_rain <- data.frame(
+  month = 6:11,  # Months June (6) to November (11)
+  num_data = c(150, 160, 150, 140, 165, 155)  # Simulated number of data points for each month
 )
 
+# Simulate total rainfall (random values between 50 and 200 mm for each month)
+simulated_rain$total_rainfall <- sample(50:200, size = 6, replace = TRUE)
 
-# State names
-states <- c(
-  "Alabama" = "AL", "Alaska" = "AK", "Arizona" = "AZ", "Arkansas" = "AR",
-  "California" = "CA", "Colorado" = "CO", "Connecticut" = "CT", "Delaware" = "DE",
-  "Florida" = "FL", "Georgia" = "GA", "Hawaii" = "HI", "Idaho" = "ID",
-  "Illinois" = "IL", "Indiana" = "IN", "Iowa" = "IA", "Kansas" = "KS",
-  "Kentucky" = "KY", "Louisiana" = "LA", "Maine" = "ME", "Maryland" = "MD",
-  "Massachusetts" = "MA", "Michigan" = "MI", "Minnesota" = "MN", "Mississippi" = "MS",
-  "Missouri" = "MO", "Montana" = "MT", "Nebraska" = "NE", "Nevada" = "NV",
-  "New Hampshire" = "NH", "New Jersey" = "NJ", "New Mexico" = "NM", "New York" = "NY",
-  "North Carolina" = "NC", "North Dakota" = "ND", "Ohio" = "OH", "Oklahoma" = "OK",
-  "Oregon" = "OR", "Pennsylvania" = "PA", "Rhode Island" = "RI", "South Carolina" = "SC",
-  "South Dakota" = "SD", "Tennessee" = "TN", "Texas" = "TX", "Utah" = "UT",
-  "Vermont" = "VT", "Virginia" = "VA", "Washington" = "WA", "West Virginia" = "WV",
-  "Wisconsin" = "WI", "Wyoming" = "WY"
+# Calculate average rainfall for each month
+simulated_rain$avg_rainfall <- simulated_rain$total_rainfall / simulated_rain$num_data
+
+# Generate random product names for watermelon snacks, drinks, and fruit
+product_names_watermelon <- c(
+  "Seedless Watermelon", "Watermelon Flavored Drink", "Watermelon Flavored Gummy", 
+  "Watermelon Popsicle", "Watermelon Juice", "Watermelon Slices", 
+  "Watermelon Candy", "Sparkling Watermelon Beverage", "Watermelon Sorbet", 
+  "Watermelon Cake", "Watermelon Jam"
 )
 
-#simulating states
-state <- sample(states, n, replace = TRUE)
-
-#simulating start
-start_date <- sample(seq(as.Date('2021-01-01'),as.Date('2024-10-27'),by='day')
-                     , n, replace = TRUE)
-
-#simulating sample_size
-sample_size <- sample(500:2000, n, replace = TRUE)
-
-#simulating candidate_names
-candidate_names <- sample(c('Trump', 'Harris'), n, replace = TRUE)
-
-#simulating pct
-pct <- round(runif(n, min = 10, max = 90), 1)
-
-# Create a dataset
-simulated_data <- tibble(
-  poll_id = poll_id,
-  pollster_id = pollster_id,
-  state = state,
-  start_date = start_date,
-  end_date = start_date + sample(1:7, n, replace = TRUE),
-  sample_size = sample_size,
-  candidate_name = candidate_names,
-  pct = pct
+# Map product_name to category
+category_mapping_watermelon <- c(
+  "Seedless Sweet Baby Mini Watermelon" = "fruit",
+  "Watermelon Flavored Tea Drink" = "beverage",
+  "Watermelon Flavored Gummy" = "solid snack",
+  "Watermelon Popsicle" = "solid snack",
+  "Watermelon Apple Flavored Juice" = "beverage",
+  "Watermelon Slices" = "fruit",
+  "Watermelon Candy" = "solid snack",
+  "Sparkling Watermelon Beverage" = "beverage",
+  "Watermelon Sorbet" = "solid snack",
+  "Watermelon Cake" = "solid snack",
+  "Watermelon Jam" = "solid snack"
 )
 
-simulated_data <- merge(simulated_data, pollster_score, by = 'pollster_id')
+# Generate random IDs for watermelon
+n <- 1000  # Adjust this as needed
+watermelon_ids <- sample(1:10000000, size = n, replace = FALSE)
 
-simulated_data <- simulated_data[order(simulated_data$start_date, decreasing = TRUE),]
+simulated_data_watermelon <- data.frame(
+  id = watermelon_ids,
+  vendor = sample(c("Voila", "Loblaws", "Metro", "Walmart", "NoFrills", "SaveOnFoods"), size = n, replace = TRUE),
+  product_name = sample(product_names_watermelon, size = n, replace = TRUE)
+)
 
-simulated_data <- simulated_data %>% 
-  select(poll_id, pollster_id , numeric_grade, pollscore, start_date,
-         end_date, state, sample_size, 
-         candidate_name, pct)
+# Add the category column based on product_name
+simulated_data_watermelon$category <- category_mapping_watermelon[simulated_data_watermelon$product_name]
+
+# Simulate average prices for June to November
+for (month in c("June", "July", "August", "September", "October", "November")) {
+  simulated_data_watermelon[[paste0("avg_price_", month)]] <- 
+    ifelse(runif(n) > 0.8, NA, runif(n, min = 1, max = 20))  # 20% chance of NA
+}
+
+# Simulate product_data_pomegranate
+set.seed(456)  # Seed for pomegranate data
+
+# Generate random product names for pomegranate snacks, drinks, and fruit
+product_names_pomegranate <- c(
+  "Fresh Pomegranate", "Pomegranate Flavored Drink", "Pomegranate Flavored Candy",
+  "Pomegranate Popsicle", "Pomegranate Juice", "Pomegranate Seeds",
+  "Pomegranate Sorbet", "Pomegranate Jam", "Pomegranate Granola Bar",
+  "Pomegranate Cake", "Pomegranate Smoothie"
+)
+
+# Map product_name to category
+category_mapping_pomegranate <- c(
+  "Fresh Pomegranate" = "fruit",
+  "Pomegranate Flavored Drink" = "beverage",
+  "Pomegranate Flavored Candy" = "solid snack",
+  "Pomegranate Popsicle" = "solid snack",
+  "Pomegranate Juice" = "beverage",
+  "Large Red Pomegranate" = "fruit",
+  "Pomegranate Sorbet" = "solid snack",
+  "Pomegranate Jam" = "solid snack",
+  "Pomegranate Granola Bar" = "solid snack",
+  "Pomegranate Cake" = "solid snack",
+  "Pomegranate Smoothie" = "beverage"
+)
+
+# Generate random IDs for pomegranate, excluding watermelon IDs
+pomegranate_ids <- sample(setdiff(1:10000000, watermelon_ids), size = n, replace = FALSE)
+
+simulated_data_pomegranate <- data.frame(
+  id = pomegranate_ids,
+  vendor = sample(c("Voila", "Loblaws", "Metro", "Walmart", "NoFrills", "SaveOnFoods"), size = n, replace = TRUE),
+  product_name = sample(product_names_pomegranate, size = n, replace = TRUE)
+)
+
+# Add the category column based on product_name
+simulated_data_pomegranate$category <- category_mapping_pomegranate[simulated_data_pomegranate$product_name]
+
+# Simulate average prices for June to November
+for (month in c("June", "July", "August", "September", "October", "November")) {
+  simulated_data_pomegranate[[paste0("avg_price_", month)]] <- 
+    ifelse(runif(n) > 0.8, NA, runif(n, min = 1, max = 20))  # 20% chance of NA
+}
 
 #### Save data ####
 
 # Save data as a Parquet file
-write_parquet(simulated_data, "data/00-simulated_data/simulated_data.parquet")
+write_parquet(simulated_rain, "data/00-simulated_data/simulated_rain_data.parquet")
+write_parquet(simulated_data_pomegranate, "data/00-simulated_data/simulated_pomegranate_data.parquet")
+write_parquet(simulated_data_watermelon, "data/00-simulated_data/simulated_watermelon_data.parquet")
+
 

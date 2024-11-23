@@ -1,0 +1,775 @@
+---
+title: "Predictive Modeling for Forecasting the 2024 US Presidential Election"
+subtitle: "Trump's Narrow Victory Over Harris by Less Than One Percent of the Supporting Rate"
+author: 
+  - Bo Tang
+  - Mingjing Zhan
+  - Yiyi Feng
+thanks: "Code and data are available at: https://github.com/kqlqkqlqF/Insights-and-Predictions-for-the-U.S.-Election.git."
+date: today
+date-format: long
+abstract: "This study presents a predictive model for the 2024 U.S. Presidential Election, focusing on the race between Donald Trump and Kamala Harris. Our model forecasts a narrow victory for Trump, estimating his average support at 44.51% compared to Harris's 43.86%, with leads of Trump in swing states. The analysis shows that state and recency are important for understanding voter support trends, reflecting the electoral system's winner-takes-all nature. This research allows electoral forecasting by demonstrating how localized support influences national outcomes and shows the need for improved polling methodologies."
+format:
+  pdf:
+    toc: true
+    number-sections: true
+bibliography: references.bib
+---
+
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+
+#### Preamble ####
+# Purpose: Help constructing the "Predictive Modeling for Forecasting the 2024 US Presidential Election" paper
+
+# Author: Bo Tang, Yiyi Feng, Mingjing Zhan
+# Date: 1 November 2024
+# Contact: qinghe.tang@mail.utoronto.ca, yiyi.feng@mail.utoronto.ca, mingjin.zhan@mail.utoronto.ca
+
+####Workspace setup ####
+
+library(dplyr)
+library(here)
+library(modelsummary)
+library(tidyverse)
+library(sf)
+library(arrow)
+library(ggplot2)
+library(janitor)
+library(purrr)
+library(knitr)
+library(kableExtra)
+library(usmap)
+library(broom)
+library(caret)
+library(randomForest)
+library(rstanarm)
+
+cleaned_data <- read_parquet(here::here("data/02-analysis_data/cleaned_data.parquet"))
+analysis_data <- read_parquet(here::here("data/02-analysis_data/analysis_data.parquet"))
+
+```
+
+
+# Introduction
+
+The upcoming U.S. Presidential Election marks an important point in the nation’s political landscape, shaped by public opinion, social and economic factors, and the complexities of the electoral process. With Kamala Harris and Donald Trump competing for the presidency, accurately predicting the outcome is increasingly important. Polls not only reflect voter opinion but also influence campaign strategies and media coverage. However, challenges like sampling biases, inconsistent methods, and the gap between the popular vote and the electoral vote emphasize the need for an improved forecasting model. This paper aims to develop a predictive framework that uses national polling data and examines state-level dynamics, especially in key swing states that often decide election results.
+
+Our main focus is the probability of Donald Trump winning the 2024 U.S. presidential election, represented by voter support rates. To estimate support for both Trump and Harris, we developed linear models that account for factors such as candidate identity, poll recency, state, sample size, poll score, and poll quality, along with interactions among these variables. By identifying the optimal model, we aim to determine how these factors and their combinations influence expected support, providing insights into each candidate's chances across different regions and polling conditions. This approach models support rates rather than direct winning probabilities, allowing for a nuanced prediction that reflects variations by candidate, state, and recency.
+
+Our model predicts that Donald Trump will win by a narrow margin, with an average support of 44.51% compared to Kamala Harris's 43.86%. Trump leads in six out of seven key swing states, suggesting that this localized support could enhance his overall chances despite only a slight national lead. Among the predictor variables analyzed, state and recency are the most significant indicators of support trends, reflecting the "winner-takes-all" nature of the U.S. electoral system and the increasing accuracy of polling data as Election Day approaches.
+
+The remainder of this paper is structured as follows: [@sec-data] provides an overview of the dataset, details of the parameters, outcome and predictor variables, and the packages used during processing. [@sec-model] explains the modeling approach, and best model selection, justifying the choice of predictors and outlining the methods used to forecast support for Trump and Harris. [@sec-results] presents the findings, including a summary of the predicted support rate for Trump, a comparison of the predicted support rates for Trump and Harris, and a breakdown of their support rates in each state. In [@sec-discussion], we discuss the implications of these results, the limitations of our analysis, and potential avenues for future research. Additional methodological details and diagnostics are included in the appendix.
+
+
+
+# Data {#sec-data}
+
+## Overview
+
+In this analysis, we used R [@citeR] to investigate polling data on public sentiment leading up to the election. Our dataset, sourced from FiveThirtyEight [@fivethirtyeight2024], provides a detailed snapshot of shifting public opinion over time. We examined key factors influencing support percentages, including poll timing, pollster characteristics, and state-specific trends.
+
+Several R packages were vital for our data manipulation, modeling, and visualization efforts. The dplyr package provided efficient tools for data transformation and summarization [@dplyr], while modelsummary enhanced the presentation of model outputs in a clear and organized manner [@modelsummary]. We used sf for handling spatial data, enabling analysis of state-level dynamics in the election [@sf]. purrr streamlined functional programming, allowing for the application of functions across data structures [@purrr]. kableExtra created customizable tables to improve our data presentation [@kableExtra], and usmap facilitated mapping of electoral data across states [@usmap]. The broom package converted complex model outputs into tidy data frames for easier analysis [@broom]. Package caret provided a unified framework for building and evaluating machine learning models [@caret], while the randomForest package enabled the use of random forest modeling techniques for our predictive analysis [@randomForest]. Finally, testthat ensured the reliability of our analyses through code testing [@testthat]. Our workflow closely adhered to best practices, as outlined in [@tellingstories], enhancing the robustness of our predictive framework.
+
+Our group focused on Trump’s approval ratings, aiming to ensure the credibility of the data. To achieve this, we selected only pollsters with numeric grades above 2.0, and used data collected from November 15, 2022, to October 27, 2024.
+
+## Measurement
+	
+In this section, we will describe the process of converting raw poll data into a structured dataset for analysis. In this process, because this study focuses on studying the changes in Trump's support rate and predicting whether Trump can be successfully elected, all data collection and analysis will be carried out around Trump and his main opponent Harris. Raw poll data comes from actual polls conducted by various pollsters across the United States. Each pollster uses different methods, such as online panels and live phone surveys, to record whether the public supports Donald Trump. After the poll results are collected, they are aggregated into datasets, such as the dataset provided by FiveThirtyEight[@fivethirtyeight2024]. In this dataset, key factors include the start and end dates of the poll, the identity of the pollster, the state, the poll score, and the numeric grade, which is an indicator to evaluate the reliability of each poll. These parameters will be explained in detail below. This structured dataset allows us to analyze Trump's support patterns and trends over time and across states. We aim to find how these factors affect public sentiment and predict the likelihood of Trump becoming the next US president.
+
+- **Support Percentage (pct):** The percentage of respondents supporting each candidate, acting as the primary outcome variable for analysis.
+
+- **State:** The geographical area covered by the poll, either state-specific or national, which means the state was not specified while data was collected.
+
+- **Poll ID:** A unique identifier for each poll, enabling easy tracking and management of entries.
+
+- **Pollster:** The organization that conducted the poll, providing insight into the methodological quality.
+
+- **Poll Score:** A measure of the pollster's reliability, with lower (often negative) values indicating higher predictive accuracy.
+
+- **Numeric Grade:** A measure of the credibility or quality of the poll. To ensure higher credibility of the results, we removed all the original poll data with a numeric grade lower than 2.0.
+
+- **Sample Size:** The total number of respondents in each poll, which impacts the poll’s statistical precision and margin of error.
+
+- **Candidate Name:** The name of the candidate evaluated in the poll, allowing for candidate-specific analysis.
+
+- **Start Date:** The starting date of the poll, aiding in temporal alignment for trend analyses.
+
+- **End Date:** The completion date of the poll, aiding in temporal alignment for trend analyses.
+
+## Outcome Variables
+
+### Overview of Trump's Electoral Support
+
+[@fig-pct] illustrates the distribution of approval ratings for Trump. The majority of the approval ratings fall between 40% and 55%, forming a shape that resembles a normal distribution, with a peak around the 45% to 50% range. This suggests that, within the analyzed sample, most of the approval ratings cluster in this middle range, with relatively few instances of extremely high or low ratings.
+
+The lower frequency of approval ratings below 30% and above 60% indicates that these extremes are relatively uncommon in the dataset. Overall, the concentration of support in this central range suggests a fairly consistent level of public support for Trump.
+
+```{r}
+#| label: fig-pct
+#| fig-cap: Distribution of Percentage Support for Trump
+#| echo: false
+#| warning: false
+#| message: false
+
+# Calculate the median and mean of the pct variable
+median_pct <- median(analysis_data$pct, na.rm = TRUE)
+mean_pct <- mean(analysis_data$pct, na.rm = TRUE)
+
+# Create the histogram with vertical lines for the median and mean
+ggplot(analysis_data, aes(x = pct)) +
+  geom_histogram(binwidth = 1, fill = "#4575B4", color = "navy") +
+  labs(x = "Percentage Support (%)",
+       y = "Frequency") +
+  theme_bw() +
+  theme(axis.title.x = element_text(face = "bold"),  # Make x-axis title bold
+        axis.title.y = element_text(face = "bold")) + # Make y-axis title bold
+  geom_vline(aes(xintercept = median_pct, color = "Median"), linetype = "dashed", size = 1) + # Add median line with legend
+  geom_vline(aes(xintercept = mean_pct, color = "Mean"), linetype = "dashed", size = 1) + # Add mean line with legend
+  scale_color_manual(name = "Statistics", values = c("Median" = "black", "Mean" = "#D73027")) + # Manual color scale for legend
+  theme(legend.position = "top") # Adjust legend position as desired
+
+```
+
+## Predictor Variables
+
+### Summary of Predictor Variables
+
+- **State:** The U.S. state where the poll was conducted, if applicable.
+
+- **Numeric Grade:** A numeric rating from 2.0 to 3.0 indicates each pollster’s reliability.
+
+- **Sample Size:** The total number of respondents participating in the poll.
+
+- **Poll Score:** A quantitative measure of the pollster’s reliability, where lower values suggest higher predictive accuracy.
+
+- **Recency Weight:** A metric used to assess the relevance of polling data based on how close the polling dates are to an upcoming election. It is calculated by evaluating the number of days until the election from both the start and end dates of the poll, normalizing these values against the maximum days from other polls. The resulting weight gives more importance to more recent polling data, reflecting its greater influence on understanding current public sentiment.
+
+- **Candidate Name:** Indicate the corresponding presidential candidate. Trump was represented by 0, while Harris was represented by 1.
+
+### State
+
+According to [@fig-state], we observe an interesting trend: in traditionally Republican states, Trump's support is not markedly high and is even relatively low in places like Oklahoma and Tennessee. Conversely, in states typically aligned with the Democratic Party, as well as in swing states, Trump’s support is unexpectedly higher. The "national" category in the chart represents data spanning the entire country without focusing on specific states, showing Trump’s national support nearing but not reaching 50%. This suggests Trump’s appeal may be crossing traditional partisan lines, gaining unexpected traction outside Republican strongholds. Overall, his estimated national support stands at around 45%.
+
+```{r, fig.width=12, fig.height=7}
+#| label: fig-state
+#| fig-cap: Overview of the Percentage Support of Trump Across Different States
+#| echo: false
+#| warning: false
+#| message: false
+
+# Define party preference for states
+democratic_states <- c(
+   "California", "New York", "Illinois", "New Jersey", "Massachusetts",
+  "Maryland", "Washington", "Oregon", "Connecticut", "Hawaii",
+  "Rhode Island", "Vermont", "Delaware", "New Mexico", "Colorado",
+  "Virginia", "Maine", "Maine CD-1", "Maine CD-2", "Minnesota"
+) # Add other Democratic states
+
+republican_states <- c(
+  "Florida", "Ohio", "Iowa", "Texas", "Alabama", "Mississippi", "Oklahoma", "Kentucky",
+  "Tennessee", "West Virginia", "South Carolina", "Louisiana",
+  "Arkansas", "Missouri", "Indiana", "Kansas", "Nebraska", "Nebraska CD-2",
+  "South Dakota", "North Dakota", "Idaho", "Montana", "Utah", "Wyoming", "Alaska"
+)  # Add other Republican states
+
+swing_states <- c(
+  "Pennsylvania", "Michigan", "Wisconsin",
+  "North Carolina", "Arizona", "Georgia", "Nevada", "New Hampshire"
+)      # Add other swing states
+
+# Add a new column in your data for color coding based on party preference
+analysis_data_2 <- analysis_data %>%
+  mutate(state_color = case_when(
+    state %in% democratic_states ~ "Democratic",
+    state %in% republican_states ~ "Republican",
+    state %in% swing_states ~ "Swing State",
+    TRUE ~ "National"  # Default label if any state is unclassified
+  ))
+
+# Create the plot
+ggplot(analysis_data_2, aes(x = reorder(state, -pct, FUN = mean), y = pct)) +
+  geom_boxplot(aes(fill = state_color), color = "black", outlier.color = "darkblue", outlier.shape = 16) +
+  scale_fill_manual(values = c("Democratic" = "#4575B4",   # Democratic states
+                                "Republican" = "#D73027",   # Republican states
+                                "Swing State" = "white",     # Swing states
+                                "National" = "gray")) +      # National
+  labs(x = "State", y = "Percentage Support", fill = "State Type") +  # Add a legend title
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 14),  # Change angle to 90 for vertical labels
+        axis.text.y = element_text(size = 14),  # Increase y-axis label size
+        axis.title.x = element_text(size = 16, face = "bold"),  # Increase x-axis label size
+        axis.title.y = element_text(size = 16, face = "bold"),  # Increase y-axis label size
+        legend.title = element_text(size = 14, face = "bold"),  # Legend title size
+        legend.text = element_text(size = 12)) +  # Legend text size
+  ylim(10, 75)
+
+```
+
+### Numeric Grade
+
+In [@fig-method], we analyzed the relationship between numeric grade and Trump’s support rate. Each point in the chart represents a poll, with its numeric grade on the x-axis and Trump’s support rate on the y-axis. The nearly flat trend line suggests that numeric grade has no clear relationship with Trump’s support rate. However, this is a basic analysis and does not rule out the possibility that numeric grade could impact Trump’s support rate under different variable conditions.
+
+```{r}
+#| label: fig-method
+#| fig-cap: Relationship between Numeric Grade and Support Percentage of Trump
+#| echo: false
+#| warning: false
+#| message: false
+
+ggplot(analysis_data, aes(x = numeric_grade, y = pct)) +
+  geom_point(alpha = 0.5, color = "black", size = 3) +  # Adjust point color and size
+  geom_smooth(method = "lm", se = FALSE, color = "#4575B4", size = 1.2) +  # Trend line with color and size
+  labs(x = "Numeric Grade", 
+       y = "Support Percentage (%)") +
+  theme_minimal(base_size = 15) +  # Set base size for text
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 13),  # Center and bold title
+        axis.title.x = element_text(size = 11, face = "bold"),  # Bold x-axis title
+        axis.title.y = element_text(size = 11, face = "bold"),  # Bold y-axis title
+        axis.text.x = element_text(size = 11),  # Increase x-axis text size
+        axis.text.y = element_text(size = 11),  # Increase y-axis text size
+        panel.grid.major = element_line(color = "lightgray"),  # Light grid lines for better visibility
+        panel.grid.minor = element_blank()) +  # Set background color
+  xlim(min(analysis_data$numeric_grade, na.rm = TRUE), max(analysis_data$numeric_grade, na.rm = TRUE)) +  # Set x-axis limits
+  ylim(0, 100)  # Adjust y-axis limits if needed
+```
+
+### Sample Size
+
+In [@fig-sample-size], we examined the relationship between sample size and Trump’s support rate. The results show a slight downward trend in Trump’s support as the sample size increases. However, since most data points are concentrated in the 0–4000 range, with fewer data points above 4000, this may not accurately reflect the true relationship between sample size and support rate.
+
+```{r}
+#| label: fig-sample-size
+#| fig-cap: Relationship between Sample Size and Support Percentage for Trump
+#| echo: false
+#| warning: false
+#| message: false
+# Convert pct column to numeric if it is not already
+
+# Filter out rows with sample_size greater than 15000
+filtered_data <- analysis_data %>%
+  filter(sample_size <= 15000)
+
+# Plot the relationship between sample_size and pct with enhanced aesthetics
+ggplot(filtered_data, aes(x = sample_size, y = pct)) +
+  geom_point(alpha = 0.5, color = "black", size = 3) +  # Adjust point color and size
+  geom_smooth(method = "lm", se = FALSE, color = "#4575B4", size = 1.2) +  # Trend line with color and size
+  labs(x = "Sample Size", 
+       y = "Support Percentage (%)") +
+  theme_minimal(base_size = 15) +  # Set base size for text
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  # Center and bold title
+        axis.title.x = element_text(size = 16, face = "bold"),  # Bold x-axis title
+        axis.title.y = element_text(size = 16, face = "bold"),  # Bold y-axis title
+        axis.text.x = element_text(size = 14),  # Increase x-axis text size
+        axis.text.y = element_text(size = 14),  # Increase y-axis text size
+        panel.grid.major = element_line(color = "lightgray"),  # Light grid lines for better visibility
+        panel.grid.minor = element_blank()) +  # Set background color
+  xlim(min(filtered_data$sample_size, na.rm = TRUE), max(filtered_data$sample_size, na.rm = TRUE)) +  # Set x-axis limits
+  ylim(0, 100)  # Adjust y-axis limits if needed
+
+```
+
+### Poll Score
+
+Analysis of [@fig-Pollscore] shows no clear proportional or inverse relationship between poll scores and Trump’s support rate. This suggests that while a higher poll score may indicate greater reliability, it does not directly translate into changes in candidate support. This also supports the data's credibility, as Trump’s support rate remains consistent regardless of pollster ratings.
+
+```{r}
+#| label: fig-Pollscore
+#| fig-cap: Relationship between Pollscore and Support Percentage of Trump
+#| echo: false
+#| warning: false
+#| message: false
+
+# Plot the relationship between pollscore and pct
+# Plot the relationship between pollscore and pct with enhanced aesthetics
+ggplot(analysis_data, aes(x = pollscore, y = pct)) +
+  geom_point(alpha = 0.5, color = "black", size = 3) +  # Adjust point color and size
+  geom_smooth(method = "lm", se = FALSE, color = "#4575B4", size = 1.2) +  # Trend line with color and size
+  labs(x = "Pollscore", 
+       y = "Support Percentage (%)") +
+  theme_minimal(base_size = 15) +  # Set base size for text
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  # Center and bold title
+        axis.title.x = element_text(size = 16, face = "bold"),  # Bold x-axis title
+        axis.title.y = element_text(size = 16, face = "bold"),  # Bold y-axis title
+        axis.text.x = element_text(size = 14),  # Increase x-axis text size
+        axis.text.y = element_text(size = 14),  # Increase y-axis text size
+        panel.grid.major = element_line(color = "lightgray"),  # Light grid lines for better visibility
+        panel.grid.minor = element_blank()) +  # Set background color
+  xlim(min(analysis_data$pollscore, na.rm = TRUE), max(analysis_data$pollscore, na.rm = TRUE)) +  # Set x-axis limits
+  ylim(0, 100)  # Adjust y-axis limits if needed
+```
+
+### Recency Weight
+
+[@fig-recency] shows the relationship between poll recency and Trump’s support rate. It indicates a slight upward trend in Trump’s support as polls get closer to Election Day, though the increase is not significant.
+
+```{r}
+#| label: fig-recency
+#| fig-cap: Relationship between Recency Weight and Support Percentage of Trump
+#| echo: false
+#| warning: false
+#| message: false
+
+# Plot the relationship between recency_weight and pct with enhanced aesthetics
+ggplot(analysis_data, aes(x = recency_weight, y = pct)) +
+  geom_point(alpha = 0.5, color = "black", size = 3) +  # Adjust point color and size
+  geom_smooth(method = "lm", se = FALSE, color = "#4575B4", size = 1.2) +  # Trend line with color and size
+  labs(x = "Recency Weight", 
+       y = "Support Percentage (%)") +
+  theme_minimal(base_size = 15) +  # Set base size for text
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  # Center and bold title
+        axis.title.x = element_text(size = 16, face = "bold"),  # Bold x-axis title
+        axis.title.y = element_text(size = 16, face = "bold"),  # Bold y-axis title
+        axis.text.x = element_text(size = 14),  # Increase x-axis text size
+        axis.text.y = element_text(size = 14),  # Increase y-axis text size
+        panel.grid.major = element_line(color = "lightgray"),  # Light grid lines for better visibility
+        panel.grid.minor = element_blank()) +  # Set background color
+  xlim(min(analysis_data$recency_weight, na.rm = TRUE), max(analysis_data$recency_weight, na.rm = TRUE)) +  # Set x-axis limits
+  ylim(0, 100)  # Adjust y-axis limits if needed
+```
+
+### Candidate Name
+
+To predict Trump's probability of winning the election, we will create a model containing the aforementioned predictor variables to forecast the support rates for both Trump and his main opponent, Harris. To ensure fairness in the results, we will use the same model to predict the support rates for Trump and Harris. Thus, we have created a categorical variable called candidate name, while all of the candidates other than Donald Trump and Kamala Harris were removed.
+
+
+# Model {#sec-model}
+
+```{r}
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+model1 <-
+  readRDS(file = here::here("models/model1.rds"))
+
+model2 <-
+  readRDS(file = here::here("models/model2.rds"))
+
+model3 <-
+  readRDS(file = here::here("models/model3.rds"))
+
+model4 <-
+  readRDS(file = here::here("models/model4.rds"))
+
+model5 <-
+  readRDS(file = here::here("models/model5.rds"))
+```
+
+The goal of this section is to address the inherent biases and variations present in polling data to build a robust predictive model. The key challenge lies in achieving an optimal balance between model complexity and fit, ensuring that the model accurately captures the dynamics of polling data while avoiding overfitting. To this end, we evaluated multiple model specifications to identify the one that best meets our forecasting objectives.
+
+We chose to use "numeric grade" and "poll score" as variables instead of "pollster" because "pollster" tends to be highly subjective. People often select polling organizations that favor their preferred candidate, which can introduce bias. In contrast, "numeric grade" and "poll score" offer a more objective, quantified reflection of poll quality and bias, helping to improve accuracy and reliability in the regression analysis. Additionally, we focused on key factors such as sample size, state, and recency, gradually adding complexity to the model.
+
+By systematically comparing model specifications that incorporate different variables, we aim to identify a model that strikes the right balance between predictive accuracy and generalizability, ultimately providing the reliable forecast results.
+
+## Model Set-up
+
+We aim to model the percentage of support for a candidate based on factors including candidate name, recency weight, state, sample size, poll score, and numeric grade. This model includes interaction terms to capture how combinations of these factors jointly impact the support percentage, providing a better understanding of the influences on candidate support.
+
+\
+\begin{align*}
+\mathrm{Pct}_i = &\ \beta_0 + \beta_1 \cdot \mathrm{Candidate Name}_i + \beta_2 \cdot \mathrm{Recency Weight}_i + \beta_3 \cdot \mathrm{State}_i \\
+& + \beta_4 \cdot (\mathrm{Candidate Name}_i \times \mathrm{Recency Weight}_i) + \beta_5 \cdot (\mathrm{Candidate Name}_i \times \mathrm{State}_i) \\
+& + \beta_6 \cdot (\mathrm{Recency Weight}_i \times \mathrm{State}_i) + \beta_7 \cdot (\mathrm{Candidate Name}_i \times \mathrm{Recency Weight}_i \times \mathrm{State}_i) \\
+& + \beta_8 \cdot \mathrm{Sample Size}_i + \beta_9 \cdot \mathrm{Pollscore}_i + \beta_{10} \cdot \mathrm{Numeric Grade}_i + \epsilon_i
+\end{align*}
+\
+
+Where
+
+-   $y_i$ : The percentage of support for candidate in poll i.
+-   $\beta_0$: Intercept term, representing the predicted `pct` when all independent variables are 0.
+-   $\beta_1$: Main effect of `candidate name`, capturing the influence of the candidate.
+-   $\beta_2$: Main effect of `recency weight`, reflecting the influence of how recent the poll is on `pct`.
+-   $\beta_3$: Main effect of `state`, indicating the impact of different states on `pct`.
+-   $\beta_4$: Interaction effect between `candidate name` and `recency weight`, representing the combined influence of the candidate and recency of the poll.
+-   $\beta_5$: Interaction effect between `candidate name` and `state`, capturing the combined influence of the candidate and state.
+-   $\beta_6$: Interaction effect between `recency weight` and `state`, reflecting the joint impact of recency and state on `pct`.
+-   $\beta_7$: Three-way interaction between `candidate name`, `recency weight`, and `state`, representing the combined effect of candidate, recency, and state.
+-   $\beta_8$: Main effect of `sample size`, showing the influence of sample size on `pct`.
+-   $\beta_9$: Main effect of `pollscore`, capturing the influence of the poll score on `pct`.
+-   $\beta_{10}$: Main effect of `numeric grade`, indicating the impact of the poll’s numeric grade on `pct`.
+-   $\epsilon_i$: The error term, assumed to follow a normal distribution with mean 0.
+
+### Model Interpretation
+
+This regression model is designed to predict voter support rates by incorporating factors and interaction terms. The model includes an intercept term, representing the baseline support rate when all other predictors are zero. Among the main effects, it includes terms for candidate identity, poll recency, and state, capturing the influence of these individual factors on support rate. For instance, candidate identity indicates how different candidates affect voter support, poll recency reflects how recent the poll is, and the state variable accounts for regional variations in support.
+
+To capture more complex relationships, the model incorporates two-way interaction terms. These include interactions between candidate and recency, candidate and state, and recency and state. Each of these terms helps identify how one factor might alter the effect of another. For example, the interaction between candidate and recency shows how the influence of recency might differ for each candidate, while the interaction between candidate and state captures how support for different candidates varies by region. Additionally, the model includes a three-way interaction term among candidate identity, poll recency, and state, allowing it to account for combined effects that vary across candidates, states, and the timing of the poll.
+
+The model also includes several other predictors, including sample size, poll score, and numeric grade. These predictors help account for variations in the data, with sample size ensuring that different poll sizes are properly weighted, poll score reflecting potential bias within each poll, and numeric grade indicating the reliability of each poll. Finally, the model includes an error term to capture any unexplained variation in support rate, adding robustness to its predictions. Overall, this structure allows the model to incorporate both straightforward and complex relationships, providing a reliable prediction of voter support.
+
+## Model Justification
+
+```{r}
+#| label: tbl-model-compare
+#| tbl-cap: Model Summary with Included Variables and Interactions
+#| echo: false
+#| warning: false
+#| message: false
+
+# Extract summary statistics and add variables included in each model
+model_summary <- tibble(
+  Model = c("Model 1", "Model 2", "Model 3", "Model 4", "Model 5"),
+  Variables = c(
+    linebreak("Sample Size, Poll Score, Numeric Grade, State"), 
+    linebreak("Sample Size, Poll Score, Numeric Grade, State, Recency Weight"), 
+    linebreak("Sample Size, Poll Score, Numeric Grade, State, Recency Weight, Candidate Name"),
+    linebreak("Candidate Name × State, Recency, Sample Size, Poll Score, Numeric Grade, State"),
+    linebreak("Candidate Name × State × Recency, Sample Size, Poll Score, Numeric Grade, State")
+  ),
+  `R²` = round(c(summary(model1)$r.squared, 
+                 summary(model2)$r.squared, 
+                 summary(model3)$r.squared,
+                 summary(model4)$r.squared,
+                 summary(model5)$r.squared), 5),
+  `Adjusted R²` = round(c(summary(model1)$adj.r.squared,
+                          summary(model2)$adj.r.squared, 
+                          summary(model3)$adj.r.squared,
+                          summary(model4)$adj.r.squared,
+                          summary(model5)$adj.r.squared), 5),
+  `AIC` = round(c(AIC(model1), AIC(model2), AIC(model3), AIC(model4), AIC(model5)), 5),
+  `BIC` = round(c(BIC(model1), BIC(model2), BIC(model3), BIC(model4), BIC(model5)), 5),
+  `RMSE` = round(c(sqrt(mean(residuals(model1)^2)), 
+                   sqrt(mean(residuals(model2)^2)), 
+                   sqrt(mean(residuals(model3)^2)),
+                   sqrt(mean(residuals(model4)^2)),
+                   sqrt(mean(residuals(model5)^2))), 5)
+)
+
+# Display the table using kable
+model_summary %>%
+  kable(digits = 5, escape = FALSE) %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(2, width = "8em")
+
+```
+
+[@tbl-model-compare] summarizes the performance metrics for five models, each with progressively more variables and interactions.
+
+Model 1, which includes only basic predictors (Sample Size, Poll Score, Numeric Grade, and State), shows limited explanatory power, with an R² of 0.0526 and a high RMSE of 5.39274, indicating poor predictive accuracy. Adding Recency Weight in Model 2 slightly improves performance, increasing R² to 0.09461, but the RMSE remains high at 5.27184, suggesting only minor gains in prediction accuracy. Model 3 further incorporates Candidate Name, leading to a modest increase in R² to 0.09644, yet with minimal impact on RMSE (5.26649), indicating limited additional explanatory value from this variable alone.
+
+The inclusion of an interaction between Candidate Name and State in Model 4 significantly enhances the model’s fit, raising R² to 0.46417 and reducing RMSE to 4.05562. This improvement suggests that state-specific variations in candidate popularity are important for predictive accuracy. Finally, Model 5 builds upon Model 4 by adding a three-way interaction among Candidate Name, State, and Recency Weight. This final model achieves the highest R² (0.48581) and the lowest RMSE (3.97288), indicating the best fit and prediction accuracy across all models.
+
+In conclusion, Model 5 is chosen as it captures complex interactions and provides the best balance of explanatory power and prediction accuracy, as evidenced by its highest R² and lowest RMSE.
+
+## Optimization
+
+Since we identified the limitations of linear models in handling interaction terms during our research, if we wish to investigate this issue further, we propose an optimized model—Random Forest. The reason we chose Random Forest over a linear model is because our data includes interaction terms. Random Forest excels at handling interactions and nonlinear relationships, as it can automatically identify and leverage these complex interactions through its decision tree structure, without requiring manual adjustments to the model structure. In contrast, linear models have limited capabilities for handling interactions, typically requiring manual specification and hard to capture nonlinear effects. Given that our data contains multiple interactions, Random Forest can more flexibly adapt to the data structure, improving prediction accuracy and model stability.
+
+```{r}
+#| include: false
+#| warning: false
+#| message: false
+
+tree_data <- cleaned_data
+
+tree_data$state_candidate_recency <- with(tree_data, interaction(state, candidate_name, recency_weight))
+
+interaction_terms <- model.matrix(~state * candidate_name * recency_weight - 1, data=tree_data)
+tree_data <- cbind(tree_data, interaction_terms)
+main_effects <- tree_data[c("sample_size", "pollscore", "numeric_grade")]
+X <- cbind(main_effects, interaction_terms)
+y <- tree_data$pct
+
+set.seed(123)
+trainIndex <- createDataPartition(y, p = 0.8, list = FALSE)
+train_data <- X[trainIndex,]
+test_data <- X[-trainIndex,]
+train_y <- y[trainIndex]
+test_y <- y[-trainIndex]
+
+tuneGrid <- expand.grid(mtry = c(2, 5, 10))
+
+set.seed(123)
+rf_model <- train(
+  x = train_data,
+  y = train_y,
+  method = "rf",
+  tuneGrid = tuneGrid,
+  trControl = trainControl(method = "cv", number = 10),
+  metric = "RMSE",
+  ntree = 200
+)
+```
+
+
+```{r}
+#| label: tbl-rf
+#| tbl-cap: "Predicted Average Supporting Percentages for Donald Trump vs. Kamala Harris by Random Forest"
+#| echo: false
+#| warning: false
+#| message: false
+
+
+tree_data <- tree_data[, !duplicated(names(tree_data))]
+
+tree_data <- tree_data %>%
+  mutate(PredictedPercentage = predict(rf_model, newdata = tree_data))
+
+results <- tree_data %>%
+  group_by(candidate_name) %>%
+  summarise(AveragePredictedPercentage = mean(PredictedPercentage))
+
+total_percentage <- sum(results$AveragePredictedPercentage)
+
+results <- results %>%
+  mutate(NormalizedPercentage = (AveragePredictedPercentage / total_percentage) * 100)
+
+results %>%
+  kable(
+    col.names = c("Candidate Name", "Average Predicted Percentage", "Normalized Percentage"),
+    digits = 2,
+    booktabs = TRUE
+  ) %>%
+  kable_styling(latex_options = c("striped", "scale_down"))
+
+```
+
+[@tbl-rf] demonstrates the prediction results obtained through Random Forest. Compared to a linear model, this result may be more accurate; however, in the overall study, our main focus is the linear model.
+
+
+# Result {#sec-results}
+
+```{r}
+#| label: tbl-trump
+#| tbl-cap: "Summary Statistics of Predicted Support for Donald Trump"
+#| message: false
+#| echo: false
+#| warning: false
+
+
+cleaned_data <- cleaned_data %>%
+  mutate(PredictedPercentage = predict(model5, newdata = cleaned_data))
+
+trump_summary <- cleaned_data %>% filter(candidate_name == "Donald Trump") %>%
+  summarise(
+    Avg_Support = mean(PredictedPercentage),
+    Median_Support = median(PredictedPercentage),
+    Min_Support = min(PredictedPercentage),
+    Max_Support = max(PredictedPercentage),
+    SD_Support = sd(PredictedPercentage),
+    Total_Polls = n()
+  )
+
+trump_summary %>%
+  kable(
+    col.names = c("Avg Support", "Median Support", "Min Support", "Max Support", "SD of Support", "Total Polls"),
+    digits = 2,
+    booktabs = TRUE
+  ) %>%
+  kable_styling(latex_options = c("striped", "scale_down"))
+
+```
+
+[@tbl-trump] shows the statistical information of the predicted support rate for Trump. The average support rate is 44.51%, with a median of 44.44%. The support rate ranges from a minimum of 28% to a maximum of 67.6%. The standard deviation of the support rate is 3.98, indicating some variability in the predictions. The data is derived from 2248 polls.
+
+```{r}
+#| label: tbl-modelresults
+#| tbl-cap: "Predicted Average Supporting Percentages for Donald Trump vs. Kamala Harris"
+#| warning: false
+#| echo: false
+#| eval: true
+
+results <- cleaned_data %>%
+  group_by(candidate_name) %>%
+  summarise(AveragePredictedPercentage = mean(PredictedPercentage))
+
+total_percentage <- sum(results$AveragePredictedPercentage)
+
+results <- results %>%
+  mutate(NormalizedPercentage = (AveragePredictedPercentage / total_percentage) * 100)
+
+results %>%
+  kable(
+    col.names = c("Candidate Name", "Average Predicted Percentage", "Normalized Percentage"),
+    digits = 2,
+    booktabs = TRUE
+  ) %>%
+  kable_styling(latex_options = c("striped", "scale_down"))
+
+```
+
+[@tbl-modelresults] presents the model's average predicted supporting percentages for Donald Trump and Kamala Harris, along with their normalized percentages. According to the model's predictions, Donald Trump's average predicted supporting percentage is 44.51%, while Kamala Harris's is 43.86%. The normalized percentages adjust these predicted values to relative proportions, with Donald Trump at 50.37% and Kamala Harris at 49.63%. These results show that although Donald Trump's average predicted supporting percentage is slightly higher than Kamala Harris's, the support rates for both candidates are nearly equal, with Donald Trump holding a slight edge.
+
+```{r}
+#| label: fig-map
+#| fig-cap: "Map of Projected Winner by State"
+#| warning: false
+#| echo: false
+#| eval: true
+
+trump_data <- cleaned_data %>%
+  filter(candidate_name == "Donald Trump") %>%
+  mutate(PredictedPercentage = predict(model5, newdata = .)) %>%
+  group_by(state) %>%
+  summarise(Trump_Predicted = mean(PredictedPercentage, na.rm = TRUE))
+
+# Generate predictions for Harris and calculate average by state
+harris_data <- cleaned_data %>%
+  filter(candidate_name == "Kamala Harris") %>%
+  mutate(PredictedPercentage = predict(model5, newdata = .)) %>%
+  group_by(state) %>%
+  summarise(Harris_Predicted = mean(PredictedPercentage, na.rm = TRUE))
+
+# Combine results into a single dataset
+state_results <- trump_data %>%
+  full_join(harris_data, by = "state")
+
+# Replace NA values with 0 for comparison
+state_results <- state_results %>%
+  mutate(
+    Trump_Predicted = replace_na(Trump_Predicted, 0),
+    Harris_Predicted = replace_na(Harris_Predicted, 0)
+  )
+
+# Determine the winner in each state
+state_results <- state_results %>%
+  mutate(Winner = ifelse(Trump_Predicted > Harris_Predicted, "Donald Trump", "Kamala Harris"))
+
+# Create the map with improved aesthetics and no axis labels or ticks
+plot_usmap(data = state_results, regions = "states", values = "Winner", color = "white", size = 0.3) +
+  scale_fill_manual(
+    values = c("Donald Trump" = "#B2182B", "Kamala Harris" = "#2166AC"),  # Darker red and blue
+    name = "Projected Winner"
+  ) +
+  labs(
+    subtitle = "Predicted Average Vote Percentages\nfor Donald Trump vs. Kamala Harris",
+    caption = "Data Source: Model Predictions"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "bottom",
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.text = element_text(size = 10),
+    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),  # Center-align and enlarge title
+    plot.subtitle = element_text(size = 14, hjust = 0.5),  # Center-align subtitle
+    plot.caption = element_text(size = 10, face = "italic", hjust = 1),  # Right-align caption
+    panel.grid = element_blank(),  # Remove all grid lines for a cleaner look
+    axis.text = element_blank(),   # Remove axis text (latitude/longitude labels)
+    axis.ticks = element_blank()   # Remove axis ticks
+  )
+```
+
+[@fig-map] shows the predicted winner by state. Red indicates Trump’s predicted lead, blue indicates Harris’s lead, and gray marks states with insufficient data to predict the winner. This map visually represents regional support patterns for both candidates across the country. Trump shows strength in parts of the Midwest and South, while Harris performs better in parts of the Northeast and West. The table below [@tbl-model-state] presents the specific support rate figures.
+
+```{r}
+#| label: tbl-model-state
+#| tbl-cap: "Table of Projected Winner by State"
+#| echo: false
+#| eval: true
+#| warning: false
+
+# Display the results in a table
+state_results %>%
+  arrange(state) %>%
+  kable(
+    col.names = c("State", "Donald Trump (%)", "Kamala Harris (%)", "Projected Winner"),
+    digits = 2,
+    booktabs = TRUE
+  ) %>%
+  kable_styling(latex_options = c("striped", "scale_down"))
+
+```
+
+[@tbl-model-state] provides detailed data for each state’s predicted support rate and expected winner. Together with [@fig-map], it offers a better understanding of Trump and Harris’s support levels in each state.
+
+# Discussion {#sec-discussion}
+
+## Summery of Findings
+
+Our model predicts a narrow victory for Donald Trump, with an average support of 44.51% compared to Kamala Harris’s 43.86%. This result aligns with the predictions from our Random Forest model in [@tbl-rf], which also suggests a slight edge for Trump. However, since a higher popular vote does not guarantee an election win, and both models indicate no significant lead, we hesitate to conclude that Trump is highly likely to win.
+
+Looking at support across states, Trump has a clear advantage in the swing states, which strengthens his position in our prediction. Out of seven swing states: Wisconsin, Pennsylvania, North Carolina, Nevada, Michigan, Georgia, and Arizona [@swing], Trump leads six. Since swing states play an important role in the election outcome, we believe that even with a slight national lead, Trump’s support in these states could give him an advantage over Harris.
+
+Among all predictor variables, state and the recency of poll data stand out as the most effective indicators of support trends. This finding aligns with structural aspects of the U.S. election system: most states use a “winner-takes-all” approach, where winning the majority yields all electoral votes, and many states have strong historical party preferences. Consequently, state-level support has a direct impact on the election outcome. Additionally, as Election Day nears, polling data becomes increasingly accurate, better reflecting actual voter intentions.
+
+## Limitation
+
+Our analysis focuses exclusively on data related to Trump, which may weaken the overall analysis. In organizing the data, we excluded poll data with low numeric grades to enhance its credibility; however, this approach resulted in a smaller sample size and reduced coverage. When examining the relationship between state and supporting percentage (PCT), we did not integrate PCT with sample size for comparison. We believe that all decisions made by the collective data should be treated equally, regardless of sample size. This perspective has led to some counterintuitive results, such as states where Trump’s party is strong giving him fewer votes. Additionally, a significant portion of our raw data lacks exact state labels, which introduces errors in analyzing the relationship between state and PCT, even after processing.
+
+Choosing a linear regression model to predict election results has several clear drawbacks. First, linear regression assumes a linear relationship between variables, which often does not hold in reality. Additionally, linear models have limitations when handling multiple interaction terms. In our model, we selected a three-way interaction term by combining Candidate Names, Recency Weight, and State. This increases the complexity of the model, but linear regression struggles to automatically adapt to and capture these complex interactions, potentially leading to less accurate predictions.
+Furthermore, linear regression is sensitive to outliers and noise in the data, making the model susceptible to instability due to these factors. It is also vulnerable to multicollinearity; for instance, Numeric Grade and Poll Score may have high correlations, which can make the model coefficients unreliable. This sensitivity and reliance on linear assumptions reduce the model’s ability to accurately predict complex, nonlinear relationships in the data.
+
+## Future Study
+
+In future research, if we continue to use a linear regression model to study U.S. election outcomes, we will focus on enhancing the model’s stability and generalization ability. We may consider using Lasso regression to reduce overfitting and address issues with model accuracy, ensuring that our model performs better when handling different or more complex datasets. Additionally, to prepare for the next election, we may introduce more data parameters and sources to improve the accuracy and applicability of election predictions, helping to decrease biases and false data caused by subjective factors. For example, we could incorporate demographic data, regional economic data, and social sentiment analysis to add parameters that reduce subjective influence, providing the model with a new perspective to analyze how different economic and cultural factors affect presidential choice across regions. 
+
+Moreover, by analyzing voter characteristics, we could address the instability of swing state data by building a profile of swing state voters and their characteristics to better predict the outcome in these states. If linear regression proves insufficient, we may consider more complex models, such as Random Forests or Neural Networks, to better capture nonlinear relationships and complex interactions among variables. Ultimately, this approach could lead to a more accurate election prediction model.
+
+
+\newpage
+
+# Appendix a. {-}
+
+## Overview of Emerson College Polling Methodology (October 23-25, 2024)
+
+The Emerson College Polling conducted a survey from October 23 to 25, 2024, targeting 1,000 likely voters to investigate the differences in support for various candidates. In this presidential election, 58% support former President Donald Trump, while 39% support Vice President Kamala Harris.
+
+## Population, Frame, and Sample
+
+In this context, the target population consists of likely voters in the U.S. elections, defined by their likelihood to vote in the upcoming elections and their voting history, both of which are self-reported in the survey. The sampling frame specifically focuses on likely voters in Montana, who were reached through a combination of cell phone contacts provided by Aristotle and an online voter panel from CINT. The sample consists of 1,000 likely voters randomly selected from the sampling frame, with their status determined by a combination of voter history, registration status, and demographic data, all of which are self-reported. This methodology provides a balanced overview of Montana voters' priorities, with a credibility interval of +/- 3%.
+
+## Sampling Approach and Trade-offs
+
+Emerson College utilized a mixed-mode sampling approach for its poll of likely voters in Montana. This strategy involved two main methods: sending MMS text messages linked to an online survey using Aristotle’s voter lists and accessing a pre-screened, opt-in online panel from CINT. The MMS method is efficient and cost-effective, allowing participants to complete the survey at their convenience, which can enhance response rates. The online panel broadens coverage to include voters not reachable through text, capturing a wider demographic range across the state. Together, these methods create a diverse sample while reducing costs compared to traditional phone or in-person interviews.
+
+However, this approach has trade-offs. The MMS survey requires recipients to have active cell phones and internet, potentially excluding older or less tech-savvy voters. Additionally, the online panel consists of self-selected participants, which may not fully reflect the general voter population. Mixing data from both sources can introduce inconsistencies, as each method may attract different respondent types, necessitating careful weighting to maintain balance and accuracy. Smaller demographic subsets, such as age, race, or education, carry higher credibility intervals due to reduced sample sizes, limiting precision in analysis. Overall, the mixed approach optimizes reach, reduces costs, and shows the priority needs of Montana’s voters, although there are limitations.
+
+## Non-response Handling
+
+Emerson College does not provide specific details regarding its non-response management. While it mentions that data were weighted by demographics such as gender, education, race, age, party registration, and region to align with the 2024 likely voter model, this weighting primarily addresses demographic imbalances and does not directly mitigate non-response bias. The survey lacks information on common non-response strategies, such as follow-up attempts, participation incentives, or specific adjustments for non-responders. This absence raises concerns about potential non-response bias, particularly if certain demographic groups were less likely to engage with the survey.
+
+## Questionnaire Design
+
+This questionnaire has strong points. Its straightforward and clear wording makes questions easy for respondents to follow and reduces potential confusion. By focusing on issues like the economy, housing, and voter approval for specific candidates, it captures key voter concerns in Montana, offering a concise view. The use of multiple questions around candidate approval, voter issues, and demographics adds depth to the questionnaire.
+However, the questionnaire also has limitations. While demographic questions enhance the survey’s representativeness, smaller groups (e.g., nonbinary individuals) may carry higher credibility intervals, reducing precision for those subgroups. The mixed-mode approach (online panel and mobile) improves access but still risks non-response bias, as certain demographics might be less likely to participate. Overall, the design achieves clarity and breadth, though response biases and sample variations should be considered in interpreting the findings. For example, in this survey of 1,000 Montana voters, only 5 respondents identified as nonbinary or other genders. Since statistical reliability depends on the number of responses, small groups have higher variability, meaning their responses can swing widely due to each individual answer carrying greater weight.
+
+# Appendix b. {-}
+
+## Idealized Methodology for Forecasting the U.S. Presidential Election
+
+We aim to develop a methodology for forecasting U.S. presidential election outcomes by conducting a survey with a $100,000 budget. Using stratified random sampling and multi-mode recruitment, the survey targets 10,000 likely voters across demographic and regional lines. Key measures include data validation checks, weighted analysis, and predictive modeling to ensure accuracy. Results will be enriched by aggregating reputable data sources like FiveThirtyEight for a better forecast.
+
+## Budget Allocation
+
+Funding allocations will focus on ensuring thorough and effective sampling, recruitment, data validation, and analysis methods are employed with a total budget of no more than $10,000. The proposed budget breakdown is as follows:
+
+Survey platform costs: $10,000 (subscription fees for online survey tools such as Google Forms or Qualtrics)
+
+Respondent incentives: $10,000 (gift cards or other incentives to encourage participation)
+
+Recruitment and staffing: $35,000 (staffing costs for survey distribution and data collection)
+
+Data analysis tools: $20,000 (statistical software licenses, data cleaning and analysis)
+
+Marketing and promotion: $10,000 (awareness and engagement campaigns)
+
+Contingency fund: $5,000 (for unexpected expenses)
+
+## Sampling Approach
+
+The sampling approach will employ a stratified random sampling method to ensure representation across various demographic groups, including age, gender, race, education level, geographical location, and party affiliation. The target population consists of likely voters in the U.S., defined by historical voting behavior and self-reported intentions to vote. A sample size of approximately 10,000 respondents will be aimed at ensuring statistical robustness and a credibility interval of +/- 1% at a 95% confidence level.
+This will be achieved through a combination of national voter registration databases to identify potential respondents. For example, we can utilize the National Voter Registration Act (NVRA) data from the National Association of Secretaries of State (NASS) to access information on registered voters. This database will allow us to filter for likely voters based on their registration status and historical voting behavior, ensuring that our sampling frame is representative of the electorate. By using reliable sources, we can create a sampling framework that enhances the accuracy of our election forecasts.
+
+## Respondent Recruitment and Data Validation
+
+To reach the target population, a multi-mode recruitment strategy will be implemented:
+Online Surveys: Use Google Forms to distribute the survey electronically.
+Telephone Surveys: Conduct live telephone interviews to capture demographics that might not engage online.
+Text Messaging Surveys: Implement SMS surveys to reach younger demographics and those without regular internet access.
+Incentives: Offer gift cards or other small incentives for participation, particularly for online respondents. This can enhance response rates and engagement.
+
+To effectively reach our target population and capture a diverse range of perspectives, we will implement a multi-mode recruitment strategy tailored to different demographic groups and communication preferences. This approach includes online surveys using a Google Forms questionnaire, which will be widely distributed through social media, email lists, and community networks to maximize reach among individuals who frequently engage online. The user-friendly platform allows participants to complete the survey quickly and anonymously on any internet-enabled device. The survey can be accessed through the following link: [https://forms.gle/oSbad52Vuw9Z9Wf46](https://forms.gle/oSbad52Vuw9Z9Wf46). Additionally, we will conduct live telephone interviews to include participants who may not be reachable through online channels, ensuring we capture responses from populations that might otherwise be underrepresented. To further engage younger demographics and individuals with limited internet access, we will implement SMS-based surveys, allowing participants to respond quickly via text. To encourage participation and improve response rates, small incentives such as digital gift cards will be offered, particularly for online respondents, with details communicated at the survey's start and awarded upon completion to ensure transparency. This comprehensive approach will enable us to gather a robust and representative dataset, providing valuable insights into the preferences and priorities of voters across multiple demographics.
+
+## Poll Aggregation and Modeling
+
+Poll results will be aggregated using statistical methods to identify trends and analyze historical voting patterns. For model building, we will implement a weighted analysis to ensure demographic representation, applying specific weights based on factors such as age, gender, race, and education level, as well as state significance to reflect regional variations in voter behavior. Predictive analytics will primarily involve logistic regression to model voting preferences and forecast election outcomes, supplemented by time-series analysis to track changes in voter sentiment over the campaign period. To enhance our findings, we will combine our data with reputable sources like FiveThirtyEight, utilizing their aggregation techniques to enrich our analysis. 
+
+\newpage
+
+# References
+

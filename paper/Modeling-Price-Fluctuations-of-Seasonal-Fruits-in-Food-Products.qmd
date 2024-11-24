@@ -1,9 +1,7 @@
 ---
-title: "Predictive Modeling for Forecasting the 2024 US Presidential Election"
+title: "Modeling Price Fluctuations of Seasonal Fruits in Food Products: A Predictive Analysis"
 subtitle: "Trump's Narrow Victory Over Harris by Less Than One Percent of the Supporting Rate"
 author: 
-  - Bo Tang
-  - Mingjing Zhan
   - Yiyi Feng
 thanks: "Code and data are available at: https://github.com/kqlqkqlqF/Insights-and-Predictions-for-the-U.S.-Election.git."
 date: today

@@ -1,47 +1,85 @@
 #### Preamble ####
-# Purpose: Build all models needed for predicting the 2024 US Presidential Election
-# Author: Bo Tang, Yiyi Feng, Mingjing Zhan
-# Date: 2 November 2024
-# Contact: qinghe.tang@mail.utoronto.ca, yiyi.feng@mail.utoronto.ca, mingjin.zhan@mail.utoronto.ca
+# Purpose: Build all models needed 
+# Author: Yiyi Feng
+# Date: 27 November 2024
+# Contact: yiyi.feng@mail.utoronto.ca
 # License: MIT
 # Pre-requisites: 
-# - The `tidyverse` and rstanarm` package must be installed and loaded
+# - The `tidyverse`, `randomForest` and `arrow` package must be installed and loaded
 # - 02-clean_data.R must have been run
-# Any other information needed? Make sure you are in the `Insights and Predictions for the U.S. Election` rproj
-
+# Any other information needed? No
 
 #### Workspace setup ####
 library(tidyverse)
-library(rstanarm)
+library(randomForest)
+library(arrow)
+
 
 #### Read data ####
-analysis_data <- read_parquet("data/02-analysis_data/cleaned_data.parquet")
+model_data <- read_parquet("data/02-analysis_data/combined_model_data.parquet")
 
-### Model data ####
-model1 <- lm(pct ~ sample_size + pollscore + numeric_grade + state, 
-                   data = analysis_data)
 
-model2 <- lm(pct ~ sample_size + pollscore + numeric_grade + recency_weight + 
-                   state, data = analysis_data)
+# 1. Preprocess the data: Ensure categorical variables are factors
+model_data <- model_data %>%
+  mutate(
+    vendor = as.factor(vendor),
+    category = as.factor(category),
+    flavor = as.factor(flavor),
+    month = as.factor(month)  # Month as a factor for modeling
+  )
 
-model3 <- lm(pct ~ candidate_name + sample_size + pollscore + numeric_grade + 
-                   recency_weight + state,
-                   data = analysis_data)
+# 2. Create the target variable: Change in average price (monthly_avg_price - previous month's price)
+# Sort by id and month
+model_data <- model_data %>%
+  arrange(id, month)
 
-model4 <- lm(pct ~ candidate_name * state + recency_weight + sample_size + 
-                   pollscore + numeric_grade,
-                   data = analysis_data)
+# Calculate the change in price (current month - previous month) for each product
+model_data <- model_data %>%
+  group_by(id) %>%
+  mutate(price_change = monthly_avg_price - lag(monthly_avg_price)) %>%
+  ungroup()
 
-model5 <- lm(pct ~ candidate_name * recency_weight * state + sample_size + 
-                   pollscore + numeric_grade,
-                   data = analysis_data)
+# We need to remove rows where price_change is NA (because there's no previous month for those)
+model_data <- model_data %>%
+  filter(!is.na(price_change))
+
+# 3. Train the Random Forest model to predict the change in average price
+# We'll use vendor, category, month, and rainfall (avg_rainfall) as predictors
+
+rf_model <- randomForest(price_change ~ vendor + category + month + avg_rainfall, 
+                         data = model_data, 
+                         na.action = na.roughfix,   # Automatically handles NAs by imputing
+                         importance = TRUE)
+
+
+# 4. View the model summary
+print(rf_model)
+
+# 5. Check the importance of each predictor
+importance(rf_model)
+
+
+# 1. Train a linear regression model
+lm_model <- lm(price_change ~ vendor + category + month + avg_rainfall, data = model_data)
+
+# 2. View the model summary
+summary(lm_model)
+
+# 3. Predict using the linear model
+lm_predictions <- predict(lm_model, newdata = model_data)
+
+# 4. Evaluate the model performance (RMSE)
+lm_rmse <- sqrt(mean((lm_predictions - model_data$price_change)^2))
+cat("RMSE for Linear Model:", lm_rmse, "\n")
+
+# 5. Optionally, plot the residuals to check the assumptions
+plot(lm_model$residuals)
+
 
 #### Save model ####
-saveRDS(model1, file = "models/model1.rds")
-saveRDS(model2, file = "models/model2.rds")
-saveRDS(model3, file = "models/model3.rds")
-saveRDS(model4, file = "models/model4.rds")
-saveRDS(model5, file = "models/model5.rds")
+saveRDS(rf_model, file = "models/model_rf.rds")
+saveRDS(lm_model, file = "models/mode_linear.rds")
+
 
 
 

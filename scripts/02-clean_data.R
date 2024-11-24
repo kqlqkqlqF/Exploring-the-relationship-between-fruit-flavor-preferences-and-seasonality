@@ -202,8 +202,48 @@ average_rainfall <- rain_data_filtered %>%
   )
 
 
-
-
 # Save data_rain as a Parquet file
 write_parquet(average_rainfall, "data/02-analysis_data/average_rain_data.parquet")
+
+
+#### Modeling data ####
+
+# Add the Flavor column and assign "Watermelon" to all rows
+product_data_watermelon$flavor <- "Watermelon"
+
+# Add the Flavor column and assign "Watermelon" to all rows
+product_data_pomegranate$flavor <- "Pomegranate"
+
+# Combine
+product_data_combined <- rbind(product_data_watermelon, product_data_pomegranate)
+
+# Pivot the combined dataset to long format
+product_data_long <- product_data_combined %>%
+  pivot_longer(
+    cols = starts_with("avg_price_"),       # Select columns for monthly average prices
+    names_to = "month",                    # New column to store month names
+    values_to = "monthly_avg_price"        # New column to store average price values
+  ) %>%
+  mutate(
+    month = gsub("avg_price_", "", month)  # Clean up month names by removing "avg_price_"
+  )
+
+# Create a mapping of month names to numeric values
+month_mapping <- c("June" = 6, "July" = 7, "August" = 8, "September" = 9,
+                   "October" = 10, "November" = 11)
+
+# Convert month names to numeric values
+product_data_long$month <- month_mapping[product_data_long$month]
+
+# Select only the necessary columns from average_rainfall
+average_rainfall_subset <- average_rainfall %>%
+  select(month, avg_rainfall)
+
+# Merge the avg_rainfall column into product_data_long based on the month
+product_data_long <- product_data_long %>%
+  left_join(average_rainfall_subset, by = "month")
+
+# Save data_rain as a Parquet file
+write_parquet(product_data_long, "data/02-analysis_data/combined_model_data.parquet")
+
 

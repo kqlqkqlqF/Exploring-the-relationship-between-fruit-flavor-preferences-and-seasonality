@@ -53,18 +53,27 @@ rf_model <- randomForest(price_change ~ vendor + category + month + avg_rainfall
 
 
 # 1. Train a linear regression model
-lm_model <- lm(price_change ~ vendor + category  + month + avg_rainfall, data = model_data)
-
+lm_model_1 <- lm(price_change ~ vendor + category  + month + avg_rainfall, data = model_data)
 
 # 1. Train a linear regression model
-lm_model_2 <- lm(price_change ~ category  + month + avg_rainfall, data = model_data)
+lm_model_2 <- lm(price_change ~ vendor + category  * month + avg_rainfall, data = model_data)
 
+# 1. Train a linear regression model
+lm_model_3 <- lm(price_change ~ vendor + category  + month * avg_rainfall, data = model_data)
 
+# 1. Train a linear regression model
+lm_model_4 <- lm(price_change ~ vendor + month + category  * avg_rainfall, data = model_data)
+
+# 1. Train a linear regression model
+lm_model_5 <- lm(price_change ~ vendor * category  + month + avg_rainfall, data = model_data)
 
 #### Save model ####
 saveRDS(rf_model, file = "models/model_rf.rds")
-saveRDS(lm_model, file = "models/model_linear_1.rds")
+saveRDS(lm_model_1, file = "models/model_linear_1.rds")
 saveRDS(lm_model_2, file = "models/model_linear_2.rds")
+saveRDS(lm_model_3, file = "models/model_linear_3.rds")
+saveRDS(lm_model_4, file = "models/model_linear_4.rds")
+saveRDS(lm_model_5, file = "models/model_linear_5.rds")
 
 
 

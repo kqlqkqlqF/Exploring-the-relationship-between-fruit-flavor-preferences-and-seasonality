@@ -273,6 +273,16 @@ model_linear_1 <-
 model_linear_2 <-
   readRDS(file = here::here("models/model_linear_2.rds"))
 
+model_linear_3 <-
+  readRDS(file = here::here("models/model_linear_3.rds"))
+
+model_linear_4 <-
+  readRDS(file = here::here("models/model_linear_4.rds"))
+
+model_linear_5 <-
+  readRDS(file = here::here("models/model_linear_5.rds"))
+
+
 ```
 
 The goal of this section is to address the inherent biases and variations present in polling data to build a robust predictive model. The key challenge lies in achieving an optimal balance between model complexity and fit, ensuring that the model accurately captures the dynamics of polling data while avoiding overfitting. To this end, we evaluated multiple model specifications to identify the one that best meets our forecasting objectives.
@@ -283,23 +293,29 @@ By systematically comparing model specifications that incorporate different vari
 
 ## Model Set-up
 
-We aim to model the percentage of support for a candidate based on factors including candidate name, recency weight, state, sample size, poll score, and numeric grade. This model includes interaction terms to capture how combinations of these factors jointly impact the support percentage, providing a better understanding of the influences on candidate support.
+We aim to model the percentage of support for a candidate based on factors including Vendor, Category, state, sample size, poll score, and numeric grade. This model includes interaction terms to capture how combinations of these factors jointly impact the support percentage, providing a better understanding of the influences on candidate support.
 
+\
 \begin{align*}
-\text{Price Change}_i = &\ \beta_0 + \beta_1 \cdot \text{Vendor}_i + \beta_2 \cdot \text{Category}_i + \beta_3 \cdot \text{Month}_i \\
-& + \beta_4 \cdot \text{Avg Rainfall}_i + \epsilon_i
+\mathrm{Pct}_i = &\ \beta_0 + \beta_1 \cdot \mathrm{Vendor}_i + \beta_2 \cdot \mathrm{Category}_i + \beta_3 \cdot \mathrm{Month}_i + \beta_4 \cdot \mathrm{Average Rainfall}_i \\
+& + \beta_5 \cdot (\mathrm{Vendor}_i \times \mathrm{Category}_i) + \beta_6 \cdot (\mathrm{Category}_i \times \mathrm{Month}_i) \\
+& + \beta_7 \cdot (\mathrm{Month}_i \times \mathrm{Average Rainfall}_i) + \beta_8 \cdot (\mathrm{Category}_i \times \mathrm{Average Rainfall}_i) + \epsilon_i
 \end{align*}
+\
 
 Where
 
--   $\text{Price Change}_i$: The change in price for product $i$.
--   $\beta_0$: Intercept term, representing the predicted price change when all independent variables are 0.
--   $\beta_1$: Main effect of $\text{Vendor}_i$, capturing the influence of the vendor on the price change.
--   $\beta_2$: Main effect of $\text{Category}_i$, representing the impact of the product category (e.g., beverage, solid snack, fruit) on the price change.
--   $\beta_3$: Main effect of $\text{Month}_i$, reflecting the influence of the month of the year on price change.
--   $\beta_4$: Main effect of $\text{Avg Rainfall}_i$, capturing the influence of average rainfall on the price change.
+-   $y_i$ : The percentage of support for candidate in poll i.
+-   $\beta_0$: Intercept term, representing the predicted `Average price of the Product` when all independent variables are 0.
+-   $\beta_1$: Main effect of `Vendor`, capturing the influence of the candidate.
+-   $\beta_2$: Main effect of `Category`, reflecting the influence of how recent the poll is on `Average price of the Product`.
+-   $\beta_3$: Main effect of `Month`, indicating the impact of different states on `Average price of the Product`.
+-   $\beta_4$: Main effect of `Average Rainfall`, indicating the impact of different states on `Average price of the Product`.
+-   $\beta_5$: Interaction effect between `Vendor` and `Category`, capturing the combined influence of the candidate and state.
+-   $\beta_6$: Interaction effect between `Category` and `Month`, reflecting the joint impact of recency and state on `pct`.
+-   $\beta_7$: Interaction effect between `Month` and `Average rainfall`, representing the combined influence of the candidate and recency of the poll.
+-   $\beta_8$: Interaction effect between `Category` and `Average rainfall`, representing the combined influence of the candidate and recency of the poll.
 -   $\epsilon_i$: The error term, assumed to follow a normal distribution with mean 0.
-
 
 ### Model Interpretation
 
@@ -312,7 +328,64 @@ The model also includes several other predictors, including sample size, poll sc
 ## Model Justification
 
 ```{r}
-#| label: tbl-model-compare
+#| label: tbl-linear
+#| tbl-cap: "Predicted Average Supporting Percentages for Donald Trump vs. Kamala Harris by Random Forest"
+#| echo: false
+#| warning: false
+#| message: false
+
+# Extract summary statistics and add variables included in each model
+model_summary <- tibble(
+  Model = c("Model 1", "Model 2", "Model 3", "Model 4", "Model 5"),
+  Variables = c(
+    linebreak("Vendor, Category, Month, Average Rainfall"), 
+    linebreak("Vendor, Category × Month, Average Rainfall"), 
+    linebreak("Vendor, Category, Month × Average Rainfall"),
+    linebreak("Vendor, Month, Category × Average Rainfall"),
+    linebreak("Vendor × Category, Month, Average Rainfall")
+  ),
+  `R²` = round(c(summary(model_linear_1)$r.squared, 
+                 summary(model_linear_2)$r.squared, 
+                 summary(model_linear_3)$r.squared,
+                 summary(model_linear_4)$r.squared,
+                 summary(model_linear_5)$r.squared), 5),
+  `Adjusted R²` = round(c(summary(model_linear_1)$adj.r.squared,
+                          summary(model_linear_2)$adj.r.squared, 
+                          summary(model_linear_3)$adj.r.squared,
+                          summary(model_linear_4)$adj.r.squared,
+                          summary(model_linear_5)$adj.r.squared), 5),
+  `AIC` = round(c(AIC(model_linear_1), AIC(model_linear_2), AIC(model_linear_3), AIC(model_linear_4), AIC(model_linear_5)), 5),
+  `BIC` = round(c(BIC(model_linear_1), BIC(model_linear_2), BIC(model_linear_3), BIC(model_linear_4), BIC(model_linear_5)), 5),
+  `RMSE` = round(c(sqrt(mean(residuals(model_linear_1)^2)), 
+                   sqrt(mean(residuals(model_linear_2)^2)), 
+                   sqrt(mean(residuals(model_linear_3)^2)),
+                   sqrt(mean(residuals(model_linear_4)^2)),
+                   sqrt(mean(residuals(model_linear_5)^2))), 5)
+)
+
+# Display the table using kable
+model_summary %>%
+  kable(digits = 5, escape = FALSE) %>%
+  kable_styling(full_width = FALSE) %>%
+  column_spec(2, width = "8em")
+
+
+```
+
+
+
+[@tbl-model-compare] summarizes the performance metrics for five models, each with progressively more variables and interactions.
+
+Model 1, which includes only basic predictors (Sample Size, Poll Score, Numeric Grade, and State), shows limited explanatory power, with an R² of 0.0526 and a high RMSE of 5.39274, indicating poor predictive accuracy. Adding Category in Model 2 slightly improves performance, increasing R² to 0.09461, but the RMSE remains high at 5.27184, suggesting only minor gains in prediction accuracy. Model 3 further incorporates Vendor, leading to a modest increase in R² to 0.09644, yet with minimal impact on RMSE (5.26649), indicating limited additional explanatory value from this variable alone.
+
+The inclusion of an interaction between Vendor and State in Model 4 significantly enhances the model’s fit, raising R² to 0.46417 and reducing RMSE to 4.05562. This improvement suggests that state-specific variations in candidate popularity are important for predictive accuracy. Finally, Model 5 builds upon Model 4 by adding a three-way interaction among Vendor, State, and Category. This final model achieves the highest R² (0.48581) and the lowest RMSE (3.97288), indicating the best fit and prediction accuracy across all models.
+
+In conclusion, Model 5 is chosen as it captures complex interactions and provides the best balance of explanatory power and prediction accuracy, as evidenced by its highest R² and lowest RMSE.
+
+## Optimization
+
+```{r}
+#| label: tbl-rfsum
 #| tbl-cap: Model Summary with Included Variables and Interactions
 #| echo: false
 #| warning: false
@@ -359,39 +432,9 @@ importance_table %>%
 
 ```
 
-[@tbl-model-compare] summarizes the performance metrics for five models, each with progressively more variables and interactions.
-
-Model 1, which includes only basic predictors (Sample Size, Poll Score, Numeric Grade, and State), shows limited explanatory power, with an R² of 0.0526 and a high RMSE of 5.39274, indicating poor predictive accuracy. Adding Recency Weight in Model 2 slightly improves performance, increasing R² to 0.09461, but the RMSE remains high at 5.27184, suggesting only minor gains in prediction accuracy. Model 3 further incorporates Candidate Name, leading to a modest increase in R² to 0.09644, yet with minimal impact on RMSE (5.26649), indicating limited additional explanatory value from this variable alone.
-
-The inclusion of an interaction between Candidate Name and State in Model 4 significantly enhances the model’s fit, raising R² to 0.46417 and reducing RMSE to 4.05562. This improvement suggests that state-specific variations in candidate popularity are important for predictive accuracy. Finally, Model 5 builds upon Model 4 by adding a three-way interaction among Candidate Name, State, and Recency Weight. This final model achieves the highest R² (0.48581) and the lowest RMSE (3.97288), indicating the best fit and prediction accuracy across all models.
-
-In conclusion, Model 5 is chosen as it captures complex interactions and provides the best balance of explanatory power and prediction accuracy, as evidenced by its highest R² and lowest RMSE.
-
-## Optimization
-
 Since we identified the limitations of linear models in handling interaction terms during our research, if we wish to investigate this issue further, we propose an optimized model—Random Forest. The reason we chose Random Forest over a linear model is because our data includes interaction terms. Random Forest excels at handling interactions and nonlinear relationships, as it can automatically identify and leverage these complex interactions through its decision tree structure, without requiring manual adjustments to the model structure. In contrast, linear models have limited capabilities for handling interactions, typically requiring manual specification and hard to capture nonlinear effects. Given that our data contains multiple interactions, Random Forest can more flexibly adapt to the data structure, improving prediction accuracy and model stability.
 
-```{r}
-#| include: false
-#| warning: false
-#| message: false
-
-
-```
-
-
-```{r}
-#| label: tbl-rf
-#| tbl-cap: "Predicted Average Supporting Percentages for Donald Trump vs. Kamala Harris by Random Forest"
-#| echo: false
-#| warning: false
-#| message: false
-
-
-
-```
-
-[@tbl-rf] demonstrates the prediction results obtained through Random Forest. Compared to a linear model, this result may be more accurate; however, in the overall study, our main focus is the linear model.
+[@tbl-rfsum] demonstrates the prediction results obtained through Random Forest. Compared to a linear model, this result may be more accurate; however, in the overall study, our main focus is the linear model.
 
 
 # Result {#sec-results}
@@ -461,7 +504,7 @@ Among all predictor variables, state and the recency of poll data stand out as t
 
 Our analysis focuses exclusively on data related to Trump, which may weaken the overall analysis. In organizing the data, we excluded poll data with low numeric grades to enhance its credibility; however, this approach resulted in a smaller sample size and reduced coverage. When examining the relationship between state and supporting percentage (PCT), we did not integrate PCT with sample size for comparison. We believe that all decisions made by the collective data should be treated equally, regardless of sample size. This perspective has led to some counterintuitive results, such as states where Trump’s party is strong giving him fewer votes. Additionally, a significant portion of our raw data lacks exact state labels, which introduces errors in analyzing the relationship between state and PCT, even after processing.
 
-Choosing a linear regression model to predict election results has several clear drawbacks. First, linear regression assumes a linear relationship between variables, which often does not hold in reality. Additionally, linear models have limitations when handling multiple interaction terms. In our model, we selected a three-way interaction term by combining Candidate Names, Recency Weight, and State. This increases the complexity of the model, but linear regression struggles to automatically adapt to and capture these complex interactions, potentially leading to less accurate predictions.
+Choosing a linear regression model to predict election results has several clear drawbacks. First, linear regression assumes a linear relationship between variables, which often does not hold in reality. Additionally, linear models have limitations when handling multiple interaction terms. In our model, we selected a three-way interaction term by combining Vendors, Category, and State. This increases the complexity of the model, but linear regression struggles to automatically adapt to and capture these complex interactions, potentially leading to less accurate predictions.
 Furthermore, linear regression is sensitive to outliers and noise in the data, making the model susceptible to instability due to these factors. It is also vulnerable to multicollinearity; for instance, Numeric Grade and Poll Score may have high correlations, which can make the model coefficients unreliable. This sensitivity and reliance on linear assumptions reduce the model’s ability to accurately predict complex, nonlinear relationships in the data.
 
 ## Future Study

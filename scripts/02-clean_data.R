@@ -35,16 +35,40 @@ product_data <- product_data %>%
 # Filter rows where 'product_name' contains 'banana' (case-insensitive)
 product_data_banana <- product_data[grepl("banana", product_data$product_name, ignore.case = TRUE), ]
 
-# Create a new column 'category' based on conditions in product_name 
 product_data_banana$category <- ifelse(
-  grepl("\\d+(ML|ml|L|l)", product_data_banana$product_name) | 
-    grepl("\\d+(ML|ml|L|l)", product_data_banana$concatted), "Beverage",
+  grepl("lemonade|juice|sparkling|drink|beverage", product_data_banana$product_name, ignore.case = TRUE) | 
+    grepl("lemonade|juice|sparkling|drink|beverage", product_data_banana$concatted, ignore.case = TRUE), 
+  "Beverage",
   ifelse(
-    grepl("\\d+(g|G|kg|KG)", product_data_banana$product_name) | 
-      grepl("\\d+(g|G|kg|KG)", product_data_banana$concatted), "Solid Snacks",
-    "Fruit"
+    grepl("yogurt", product_data_banana$product_name, ignore.case = TRUE) | 
+      grepl("yogurt", product_data_banana$concatted, ignore.case = TRUE), 
+    "Yogurt",
+    ifelse(
+      grepl("tea", product_data_banana$product_name, ignore.case = TRUE) | 
+        grepl("tea", product_data_banana$concatted, ignore.case = TRUE),
+      "Flavored Tea",
+      ifelse(
+        grepl("organic", product_data_banana$product_name, ignore.case = TRUE) | 
+          grepl("organic", product_data_banana$concatted, ignore.case = TRUE), 
+        "Fruit",
+        ifelse(
+          grepl("\\d+(ML|ml|L|l)", product_data_banana$product_name) | 
+            grepl("\\d+(ML|ml|L|l)", product_data_banana$concatted), 
+          "Beverage",
+          ifelse(
+            grepl("\\d+(g|G|kg|KG)", product_data_banana$product_name) | 
+              grepl("\\d+(g|G|kg|KG)", product_data_banana$concatted), 
+            "Solid Snacks",
+            "Fruit"  # default to "Fruit" if no category is found
+          )
+        )
+      )
+    )
   )
 )
+
+# View the updated data
+head(product_data_banana)
 
 # Remove the specified columns from the dataset
 product_data_banana <- product_data_banana %>%
@@ -55,16 +79,40 @@ product_data_banana <- product_data_banana %>%
 product_data_strawberry <- product_data %>%
   filter(grepl("strawberry", product_name, ignore.case = TRUE))
 
-# Create a new column 'category' based on conditions in product_name and concatted columns
+
 product_data_strawberry$category <- ifelse(
-  grepl("\\d+(ML|ml|L|l)", product_data_strawberry$product_name) | 
-    grepl("\\d+(ML|ml|L|l)", product_data_strawberry$concatted), "Beverage",
+  grepl("lemonade|juice|sparkling|drink|beverage", product_data_strawberry$product_name, ignore.case = TRUE) | 
+    grepl("lemonade|juice|sparkling|drink|beverage", product_data_strawberry$concatted, ignore.case = TRUE), 
+  "Beverage",
   ifelse(
-    grepl("\\d+(g|G|kg|KG)", product_data_strawberry$product_name) | 
-      grepl("\\d+(g|G|kg|KG)", product_data_strawberry$concatted), "Solid Snacks",
-    "Fruit"
+    grepl("yogurt", product_data_strawberry$product_name, ignore.case = TRUE) | 
+      grepl("yogurt", product_data_strawberry$concatted, ignore.case = TRUE), 
+    "Yogurt",
+    ifelse(
+      grepl("tea", product_data_strawberry$product_name, ignore.case = TRUE) | 
+        grepl("tea", product_data_strawberry$concatted, ignore.case = TRUE),
+      "Flavored Tea",
+      ifelse(
+        grepl("organic", product_data_strawberry$product_name, ignore.case = TRUE) | 
+          grepl("organic", product_data_strawberry$concatted, ignore.case = TRUE), 
+        "Fruit",
+        ifelse(
+          grepl("\\d+(ML|ml|L|l)", product_data_strawberry$product_name) | 
+            grepl("\\d+(ML|ml|L|l)", product_data_strawberry$concatted), 
+          "Beverage",
+          ifelse(
+            grepl("\\d+(g|G|kg|KG)", product_data_strawberry$product_name) | 
+              grepl("\\d+(g|G|kg|KG)", product_data_strawberry$concatted), 
+            "Solid Snacks",
+            "Fruit"  # default to "Fruit" if no category is found
+          )
+        )
+      )
+    )
   )
 )
+
+
 
 # Remove the specified columns
 product_data_strawberry <- product_data_strawberry %>%
@@ -164,7 +212,9 @@ write_parquet(product_data_banana, "data/02-analysis_data/banana_data.parquet")
 # Save product_data_strawberry as a Parquet file
 write_parquet(product_data_strawberry, "data/02-analysis_data/strawberry_data.parquet")
 
-# Keep only the 'dataCollectionDate' and 'airTemp' columns
+#### Cleaning Rain Data ####
+
+# Keep only the 'date' and 'airfall' columns
 rain_data <- rain_data %>%
   select(date, rainfall)
 

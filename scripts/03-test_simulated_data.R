@@ -66,34 +66,32 @@ if (ncol(test_strawberry_data) == 10) {
 
 # Map product_name to category
 category_mapping_strawberry <- c(
-  "Fresh strawberry" = "fruit",
-  "strawberry Flavored Drink" = "beverage",
-  "strawberry Flavored Candy" = "solid snack",
-  "strawberry Popsicle" = "solid snack",
-  "strawberry Juice" = "beverage",
-  "Large Red strawberry" = "fruit",
-  "strawberry Sorbet" = "solid snack",
-  "strawberry Jam" = "solid snack",
-  "strawberry Granola Bar" = "solid snack",
-  "strawberry Cake" = "solid snack",
-  "strawberry Smoothie" = "beverage"
+  "Fresh strawberry" = "Fruit",
+  "strawberry Flavored Tea" = "Flavored Tea",
+  "strawberry Flavored Candy" = "Solid snack",
+  "strawberry Popsicle" = "Solid snack",
+  "strawberry Juice" = "Beverage",
+  "Large Red strawberry" = "Fruit",
+  "strawberry Sorbet" = "Solid snack",
+  "strawberry Jam" = "Solid snack",
+  "strawberry Granola Bar" = "Solid snack",
+  "strawberry Yogurt" = "Yogurt",
+  "strawberry Smoothie" = "Beverage"
 )
-
 # Map product_name to category
 category_mapping_banana <- c(
-  "Seedless Sweet Baby Mini banana" = "fruit",
-  "banana Flavored Tea Drink" = "beverage",
-  "banana Flavored Gummy" = "solid snack",
-  "banana Popsicle" = "solid snack",
-  "banana Apple Flavored Juice" = "beverage",
-  "banana Slices" = "fruit",
-  "banana Candy" = "solid snack",
-  "Sparkling banana Beverage" = "beverage",
-  "banana Sorbet" = "solid snack",
-  "banana Cake" = "solid snack",
-  "banana Jam" = "solid snack"
+  "Seedless Sweet Baby Mini banana" = "Fruit",
+  "banana Flavored Drink" = "Beverage",
+  "banana Flavored Gummy" = "Solid snack",
+  "banana Popsicle" = "Solid snack",
+  "banana Apple Flavored tea" = "Flavored Tea",
+  "banana Slices" = "Fruit",
+  "banana Candy" = "Solid snack",
+  "banana yogurt" = "Yogurt",
+  "banana Sorbet" = "Solid snack",
+  "banana Cake" = "Solid snack",
+  "banana Jam" = "Solid snack"
 )
-
 
 # Test: Product names map correctly to categories
 test_product_category_mapping <- function(data, category_mapping) {

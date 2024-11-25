@@ -29,6 +29,7 @@ bibliography: references.bib
 ####Workspace setup ####
 
 library(dplyr)
+library(tibble)
 library(here)
 library(modelsummary)
 library(tidyverse)
@@ -45,8 +46,8 @@ library(caret)
 library(randomForest)
 library(rstanarm)
 
-cleaned_data <- read_parquet(here::here("data/02-analysis_data/cleaned_data.parquet"))
-analysis_data <- read_parquet(here::here("data/02-analysis_data/analysis_data.parquet"))
+model_data <- read_parquet(here::here("data/02-analysis_data/combined_model_data.parquet"))
+rain_data <- read_parquet(here::here("data/02-analysis_data/average_rain_data.parquet"))
 
 ```
 
@@ -77,26 +78,6 @@ Our group focused on Trump’s approval ratings, aiming to ensure the credibilit
 	
 In this section, we will describe the process of converting raw poll data into a structured dataset for analysis. In this process, because this study focuses on studying the changes in Trump's support rate and predicting whether Trump can be successfully elected, all data collection and analysis will be carried out around Trump and his main opponent Harris. Raw poll data comes from actual polls conducted by various pollsters across the United States. Each pollster uses different methods, such as online panels and live phone surveys, to record whether the public supports Donald Trump. After the poll results are collected, they are aggregated into datasets, such as the dataset provided by FiveThirtyEight[@fivethirtyeight2024]. In this dataset, key factors include the start and end dates of the poll, the identity of the pollster, the state, the poll score, and the numeric grade, which is an indicator to evaluate the reliability of each poll. These parameters will be explained in detail below. This structured dataset allows us to analyze Trump's support patterns and trends over time and across states. We aim to find how these factors affect public sentiment and predict the likelihood of Trump becoming the next US president.
 
-- **Support Percentage (pct):** The percentage of respondents supporting each candidate, acting as the primary outcome variable for analysis.
-
-- **State:** The geographical area covered by the poll, either state-specific or national, which means the state was not specified while data was collected.
-
-- **Poll ID:** A unique identifier for each poll, enabling easy tracking and management of entries.
-
-- **Pollster:** The organization that conducted the poll, providing insight into the methodological quality.
-
-- **Poll Score:** A measure of the pollster's reliability, with lower (often negative) values indicating higher predictive accuracy.
-
-- **Numeric Grade:** A measure of the credibility or quality of the poll. To ensure higher credibility of the results, we removed all the original poll data with a numeric grade lower than 2.0.
-
-- **Sample Size:** The total number of respondents in each poll, which impacts the poll’s statistical precision and margin of error.
-
-- **Candidate Name:** The name of the candidate evaluated in the poll, allowing for candidate-specific analysis.
-
-- **Start Date:** The starting date of the poll, aiding in temporal alignment for trend analyses.
-
-- **End Date:** The completion date of the poll, aiding in temporal alignment for trend analyses.
-
 ## Outcome Variables
 
 ### Overview of Trump's Electoral Support
@@ -106,28 +87,63 @@ In this section, we will describe the process of converting raw poll data into a
 The lower frequency of approval ratings below 30% and above 60% indicates that these extremes are relatively uncommon in the dataset. Overall, the concentration of support in this central range suggests a fairly consistent level of public support for Trump.
 
 ```{r}
-#| label: fig-pct
-#| fig-cap: Distribution of Percentage Support for Trump
+#| label: fig-one
+#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
 #| echo: false
+#| eval: true
 #| warning: false
 #| message: false
 
-# Calculate the median and mean of the pct variable
-median_pct <- median(analysis_data$pct, na.rm = TRUE)
-mean_pct <- mean(analysis_data$pct, na.rm = TRUE)
+# Create the plot for average price distribution
+ggplot(model_data, aes(x = monthly_avg_price)) +
+  geom_histogram(aes(y = ..density..),
+                 bins = 30,
+                 fill = "blue",
+                 color = "black",
+                 alpha = 0.7
+  ) +
+  geom_density(color = "black", fill = "salmon", alpha = 0.6) +
+  labs(
+    x = "Average Price",
+    y = "Density"
+  ) +
+  theme_minimal() +
+  facet_wrap(~flavor) +
+  theme(
+    strip.text = element_text(size = 12), # Adjust facet label size
+    axis.title = element_text(size = 14), # Adjust axis title size
+    axis.text = element_text(size = 12)  # Adjust axis label size
+  )
 
-# Create the histogram with vertical lines for the median and mean
-ggplot(analysis_data, aes(x = pct)) +
-  geom_histogram(binwidth = 1, fill = "#4575B4", color = "navy") +
-  labs(x = "Percentage Support (%)",
-       y = "Frequency") +
-  theme_bw() +
-  theme(axis.title.x = element_text(face = "bold"),  # Make x-axis title bold
-        axis.title.y = element_text(face = "bold")) + # Make y-axis title bold
-  geom_vline(aes(xintercept = median_pct, color = "Median"), linetype = "dashed", size = 1) + # Add median line with legend
-  geom_vline(aes(xintercept = mean_pct, color = "Mean"), linetype = "dashed", size = 1) + # Add mean line with legend
-  scale_color_manual(name = "Statistics", values = c("Median" = "black", "Mean" = "#D73027")) + # Manual color scale for legend
-  theme(legend.position = "top") # Adjust legend position as desired
+
+```
+
+```{r}
+#| label: fig-two
+#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+# Create the plot for price distribution by month
+ggplot(model_data, aes(x = as.factor(month), y = monthly_avg_price, color = monthly_avg_price)) +
+  geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
+  geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
+  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  labs(
+    x = "Month",
+    y = "Average Price",
+    title = "Average Price Distribution by Month"
+  ) +
+  theme_minimal() +
+  facet_wrap(~flavor) +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12)
+  )
+
 
 ```
 
@@ -135,202 +151,109 @@ ggplot(analysis_data, aes(x = pct)) +
 
 ### Summary of Predictor Variables
 
-- **State:** The U.S. state where the poll was conducted, if applicable.
+- **Vendor:** The U.S. state where the poll was conducted, if applicable.
 
-- **Numeric Grade:** A numeric rating from 2.0 to 3.0 indicates each pollster’s reliability.
+- **Average Rainfall Per Month:** A numeric rating from 2.0 to 3.0 indicates each pollster’s reliability.
 
-- **Sample Size:** The total number of respondents participating in the poll.
+- **Food Category:** The total number of respondents participating in the poll.
 
-- **Poll Score:** A quantitative measure of the pollster’s reliability, where lower values suggest higher predictive accuracy.
+- **Month:** A quantitative measure of the pollster’s reliability, where lower values suggest higher predictive accuracy.
 
-- **Recency Weight:** A metric used to assess the relevance of polling data based on how close the polling dates are to an upcoming election. It is calculated by evaluating the number of days until the election from both the start and end dates of the poll, normalizing these values against the maximum days from other polls. The resulting weight gives more importance to more recent polling data, reflecting its greater influence on understanding current public sentiment.
-
-- **Candidate Name:** Indicate the corresponding presidential candidate. Trump was represented by 0, while Harris was represented by 1.
-
-### State
+### Vendor
 
 According to [@fig-state], we observe an interesting trend: in traditionally Republican states, Trump's support is not markedly high and is even relatively low in places like Oklahoma and Tennessee. Conversely, in states typically aligned with the Democratic Party, as well as in swing states, Trump’s support is unexpectedly higher. The "national" category in the chart represents data spanning the entire country without focusing on specific states, showing Trump’s national support nearing but not reaching 50%. This suggests Trump’s appeal may be crossing traditional partisan lines, gaining unexpected traction outside Republican strongholds. Overall, his estimated national support stands at around 45%.
 
-```{r, fig.width=12, fig.height=7}
-#| label: fig-state
+```{r}
+#| label: fig-vendor
 #| fig-cap: Overview of the Percentage Support of Trump Across Different States
 #| echo: false
 #| warning: false
 #| message: false
 
-# Define party preference for states
-democratic_states <- c(
-   "California", "New York", "Illinois", "New Jersey", "Massachusetts",
-  "Maryland", "Washington", "Oregon", "Connecticut", "Hawaii",
-  "Rhode Island", "Vermont", "Delaware", "New Mexico", "Colorado",
-  "Virginia", "Maine", "Maine CD-1", "Maine CD-2", "Minnesota"
-) # Add other Democratic states
-
-republican_states <- c(
-  "Florida", "Ohio", "Iowa", "Texas", "Alabama", "Mississippi", "Oklahoma", "Kentucky",
-  "Tennessee", "West Virginia", "South Carolina", "Louisiana",
-  "Arkansas", "Missouri", "Indiana", "Kansas", "Nebraska", "Nebraska CD-2",
-  "South Dakota", "North Dakota", "Idaho", "Montana", "Utah", "Wyoming", "Alaska"
-)  # Add other Republican states
-
-swing_states <- c(
-  "Pennsylvania", "Michigan", "Wisconsin",
-  "North Carolina", "Arizona", "Georgia", "Nevada", "New Hampshire"
-)      # Add other swing states
-
-# Add a new column in your data for color coding based on party preference
-analysis_data_2 <- analysis_data %>%
-  mutate(state_color = case_when(
-    state %in% democratic_states ~ "Democratic",
-    state %in% republican_states ~ "Republican",
-    state %in% swing_states ~ "Swing State",
-    TRUE ~ "National"  # Default label if any state is unclassified
-  ))
-
-# Create the plot
-ggplot(analysis_data_2, aes(x = reorder(state, -pct, FUN = mean), y = pct)) +
-  geom_boxplot(aes(fill = state_color), color = "black", outlier.color = "darkblue", outlier.shape = 16) +
-  scale_fill_manual(values = c("Democratic" = "#4575B4",   # Democratic states
-                                "Republican" = "#D73027",   # Republican states
-                                "Swing State" = "white",     # Swing states
-                                "National" = "gray")) +      # National
-  labs(x = "State", y = "Percentage Support", fill = "State Type") +  # Add a legend title
+# Create a bar plot for vendor distribution
+ggplot(model_data, aes(x = vendor)) +
+  geom_bar(fill = "blue", color = "black", alpha = 0.7) + 
+  labs(
+    x = "Vendor",
+    y = "Count",
+    title = "Vendor Distribution"
+  ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1,size = 14),  # Change angle to 90 for vertical labels
-        axis.text.y = element_text(size = 14),  # Increase y-axis label size
-        axis.title.x = element_text(size = 16, face = "bold"),  # Increase x-axis label size
-        axis.title.y = element_text(size = 16, face = "bold"),  # Increase y-axis label size
-        legend.title = element_text(size = 14, face = "bold"),  # Legend title size
-        legend.text = element_text(size = 12)) +  # Legend text size
-  ylim(10, 75)
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels for better readability
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12)
+  )
+
 
 ```
 
-### Numeric Grade
+### Average Rainfall Per Month
 
-In [@fig-method], we analyzed the relationship between numeric grade and Trump’s support rate. Each point in the chart represents a poll, with its numeric grade on the x-axis and Trump’s support rate on the y-axis. The nearly flat trend line suggests that numeric grade has no clear relationship with Trump’s support rate. However, this is a basic analysis and does not rule out the possibility that numeric grade could impact Trump’s support rate under different variable conditions.
+In [@fig-rain], we analyzed the relationship between numeric grade and Trump’s support rate. Each point in the chart represents a poll, with its numeric grade on the x-axis and Trump’s support rate on the y-axis. The nearly flat trend line suggests that numeric grade has no clear relationship with Trump’s support rate. However, this is a basic analysis and does not rule out the possibility that numeric grade could impact Trump’s support rate under different variable conditions.
 
 ```{r}
-#| label: fig-method
+#| label: fig-rain
 #| fig-cap: Relationship between Numeric Grade and Support Percentage of Trump
 #| echo: false
 #| warning: false
 #| message: false
 
-ggplot(analysis_data, aes(x = numeric_grade, y = pct)) +
-  geom_point(alpha = 0.5, color = "black", size = 3) +  # Adjust point color and size
-  geom_smooth(method = "lm", se = FALSE, color = "#4575B4", size = 1.2) +  # Trend line with color and size
-  labs(x = "Numeric Grade", 
-       y = "Support Percentage (%)") +
-  theme_minimal(base_size = 15) +  # Set base size for text
-  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 13),  # Center and bold title
-        axis.title.x = element_text(size = 11, face = "bold"),  # Bold x-axis title
-        axis.title.y = element_text(size = 11, face = "bold"),  # Bold y-axis title
-        axis.text.x = element_text(size = 11),  # Increase x-axis text size
-        axis.text.y = element_text(size = 11),  # Increase y-axis text size
-        panel.grid.major = element_line(color = "lightgray"),  # Light grid lines for better visibility
-        panel.grid.minor = element_blank()) +  # Set background color
-  xlim(min(analysis_data$numeric_grade, na.rm = TRUE), max(analysis_data$numeric_grade, na.rm = TRUE)) +  # Set x-axis limits
-  ylim(0, 100)  # Adjust y-axis limits if needed
+# Assuming rain_data is your dataset
+ggplot(rain_data, aes(x = as.factor(month), y = avg_rainfall)) +
+  geom_bar(stat = "identity", fill = "blue", color = "black", alpha = 0.7) + 
+  labs(
+    x = "Month",
+    y = "Average Rainfall (mm)",
+    title = "Average Rainfall per Month"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12)
+  )
+
+
 ```
 
-### Sample Size
+### Food Category
 
 In [@fig-sample-size], we examined the relationship between sample size and Trump’s support rate. The results show a slight downward trend in Trump’s support as the sample size increases. However, since most data points are concentrated in the 0–4000 range, with fewer data points above 4000, this may not accurately reflect the true relationship between sample size and support rate.
 
 ```{r}
-#| label: fig-sample-size
+#| label: fig-category
 #| fig-cap: Relationship between Sample Size and Support Percentage for Trump
 #| echo: false
 #| warning: false
 #| message: false
 # Convert pct column to numeric if it is not already
 
-# Filter out rows with sample_size greater than 15000
-filtered_data <- analysis_data %>%
-  filter(sample_size <= 15000)
+# Create the plot for price distribution by category
+ggplot(model_data, aes(x = category, y = monthly_avg_price, color = monthly_avg_price)) +
+  geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
+  geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
+  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  labs(
+    x = "Category",
+    y = "Average Price",
+    title = "Average Price Distribution by Category"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12)
+  )
 
-# Plot the relationship between sample_size and pct with enhanced aesthetics
-ggplot(filtered_data, aes(x = sample_size, y = pct)) +
-  geom_point(alpha = 0.5, color = "black", size = 3) +  # Adjust point color and size
-  geom_smooth(method = "lm", se = FALSE, color = "#4575B4", size = 1.2) +  # Trend line with color and size
-  labs(x = "Sample Size", 
-       y = "Support Percentage (%)") +
-  theme_minimal(base_size = 15) +  # Set base size for text
-  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  # Center and bold title
-        axis.title.x = element_text(size = 16, face = "bold"),  # Bold x-axis title
-        axis.title.y = element_text(size = 16, face = "bold"),  # Bold y-axis title
-        axis.text.x = element_text(size = 14),  # Increase x-axis text size
-        axis.text.y = element_text(size = 14),  # Increase y-axis text size
-        panel.grid.major = element_line(color = "lightgray"),  # Light grid lines for better visibility
-        panel.grid.minor = element_blank()) +  # Set background color
-  xlim(min(filtered_data$sample_size, na.rm = TRUE), max(filtered_data$sample_size, na.rm = TRUE)) +  # Set x-axis limits
-  ylim(0, 100)  # Adjust y-axis limits if needed
+
 
 ```
 
-### Poll Score
+### Month
 
-Analysis of [@fig-Pollscore] shows no clear proportional or inverse relationship between poll scores and Trump’s support rate. This suggests that while a higher poll score may indicate greater reliability, it does not directly translate into changes in candidate support. This also supports the data's credibility, as Trump’s support rate remains consistent regardless of pollster ratings.
+Analysis of [@fig-two] shows no clear proportional or inverse relationship between poll scores and Trump’s support rate. This suggests that while a higher poll score may indicate greater reliability, it does not directly translate into changes in candidate support. This also supports the data's credibility, as Trump’s support rate remains consistent regardless of pollster ratings.
 
-```{r}
-#| label: fig-Pollscore
-#| fig-cap: Relationship between Pollscore and Support Percentage of Trump
-#| echo: false
-#| warning: false
-#| message: false
 
-# Plot the relationship between pollscore and pct
-# Plot the relationship between pollscore and pct with enhanced aesthetics
-ggplot(analysis_data, aes(x = pollscore, y = pct)) +
-  geom_point(alpha = 0.5, color = "black", size = 3) +  # Adjust point color and size
-  geom_smooth(method = "lm", se = FALSE, color = "#4575B4", size = 1.2) +  # Trend line with color and size
-  labs(x = "Pollscore", 
-       y = "Support Percentage (%)") +
-  theme_minimal(base_size = 15) +  # Set base size for text
-  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  # Center and bold title
-        axis.title.x = element_text(size = 16, face = "bold"),  # Bold x-axis title
-        axis.title.y = element_text(size = 16, face = "bold"),  # Bold y-axis title
-        axis.text.x = element_text(size = 14),  # Increase x-axis text size
-        axis.text.y = element_text(size = 14),  # Increase y-axis text size
-        panel.grid.major = element_line(color = "lightgray"),  # Light grid lines for better visibility
-        panel.grid.minor = element_blank()) +  # Set background color
-  xlim(min(analysis_data$pollscore, na.rm = TRUE), max(analysis_data$pollscore, na.rm = TRUE)) +  # Set x-axis limits
-  ylim(0, 100)  # Adjust y-axis limits if needed
-```
-
-### Recency Weight
-
-[@fig-recency] shows the relationship between poll recency and Trump’s support rate. It indicates a slight upward trend in Trump’s support as polls get closer to Election Day, though the increase is not significant.
-
-```{r}
-#| label: fig-recency
-#| fig-cap: Relationship between Recency Weight and Support Percentage of Trump
-#| echo: false
-#| warning: false
-#| message: false
-
-# Plot the relationship between recency_weight and pct with enhanced aesthetics
-ggplot(analysis_data, aes(x = recency_weight, y = pct)) +
-  geom_point(alpha = 0.5, color = "black", size = 3) +  # Adjust point color and size
-  geom_smooth(method = "lm", se = FALSE, color = "#4575B4", size = 1.2) +  # Trend line with color and size
-  labs(x = "Recency Weight", 
-       y = "Support Percentage (%)") +
-  theme_minimal(base_size = 15) +  # Set base size for text
-  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 18),  # Center and bold title
-        axis.title.x = element_text(size = 16, face = "bold"),  # Bold x-axis title
-        axis.title.y = element_text(size = 16, face = "bold"),  # Bold y-axis title
-        axis.text.x = element_text(size = 14),  # Increase x-axis text size
-        axis.text.y = element_text(size = 14),  # Increase y-axis text size
-        panel.grid.major = element_line(color = "lightgray"),  # Light grid lines for better visibility
-        panel.grid.minor = element_blank()) +  # Set background color
-  xlim(min(analysis_data$recency_weight, na.rm = TRUE), max(analysis_data$recency_weight, na.rm = TRUE)) +  # Set x-axis limits
-  ylim(0, 100)  # Adjust y-axis limits if needed
-```
-
-### Candidate Name
-
-To predict Trump's probability of winning the election, we will create a model containing the aforementioned predictor variables to forecast the support rates for both Trump and his main opponent, Harris. To ensure fairness in the results, we will use the same model to predict the support rates for Trump and Harris. Thus, we have created a categorical variable called candidate name, while all of the candidates other than Donald Trump and Kamala Harris were removed.
 
 
 # Model {#sec-model}
@@ -341,20 +264,15 @@ To predict Trump's probability of winning the election, we will create a model c
 #| warning: false
 #| message: false
 
-model1 <-
-  readRDS(file = here::here("models/model1.rds"))
+model_rf <-
+  readRDS(file = here::here("models/model_rf.rds"))
 
-model2 <-
-  readRDS(file = here::here("models/model2.rds"))
+model_linear_1 <-
+  readRDS(file = here::here("models/model_linear_1.rds"))
 
-model3 <-
-  readRDS(file = here::here("models/model3.rds"))
+model_linear_2 <-
+  readRDS(file = here::here("models/model_linear_2.rds"))
 
-model4 <-
-  readRDS(file = here::here("models/model4.rds"))
-
-model5 <-
-  readRDS(file = here::here("models/model5.rds"))
 ```
 
 The goal of this section is to address the inherent biases and variations present in polling data to build a robust predictive model. The key challenge lies in achieving an optimal balance between model complexity and fit, ensuring that the model accurately captures the dynamics of polling data while avoiding overfitting. To this end, we evaluated multiple model specifications to identify the one that best meets our forecasting objectives.
@@ -367,30 +285,21 @@ By systematically comparing model specifications that incorporate different vari
 
 We aim to model the percentage of support for a candidate based on factors including candidate name, recency weight, state, sample size, poll score, and numeric grade. This model includes interaction terms to capture how combinations of these factors jointly impact the support percentage, providing a better understanding of the influences on candidate support.
 
-\
 \begin{align*}
-\mathrm{Pct}_i = &\ \beta_0 + \beta_1 \cdot \mathrm{Candidate Name}_i + \beta_2 \cdot \mathrm{Recency Weight}_i + \beta_3 \cdot \mathrm{State}_i \\
-& + \beta_4 \cdot (\mathrm{Candidate Name}_i \times \mathrm{Recency Weight}_i) + \beta_5 \cdot (\mathrm{Candidate Name}_i \times \mathrm{State}_i) \\
-& + \beta_6 \cdot (\mathrm{Recency Weight}_i \times \mathrm{State}_i) + \beta_7 \cdot (\mathrm{Candidate Name}_i \times \mathrm{Recency Weight}_i \times \mathrm{State}_i) \\
-& + \beta_8 \cdot \mathrm{Sample Size}_i + \beta_9 \cdot \mathrm{Pollscore}_i + \beta_{10} \cdot \mathrm{Numeric Grade}_i + \epsilon_i
+\text{Price Change}_i = &\ \beta_0 + \beta_1 \cdot \text{Vendor}_i + \beta_2 \cdot \text{Category}_i + \beta_3 \cdot \text{Month}_i \\
+& + \beta_4 \cdot \text{Avg Rainfall}_i + \epsilon_i
 \end{align*}
-\
 
 Where
 
--   $y_i$ : The percentage of support for candidate in poll i.
--   $\beta_0$: Intercept term, representing the predicted `pct` when all independent variables are 0.
--   $\beta_1$: Main effect of `candidate name`, capturing the influence of the candidate.
--   $\beta_2$: Main effect of `recency weight`, reflecting the influence of how recent the poll is on `pct`.
--   $\beta_3$: Main effect of `state`, indicating the impact of different states on `pct`.
--   $\beta_4$: Interaction effect between `candidate name` and `recency weight`, representing the combined influence of the candidate and recency of the poll.
--   $\beta_5$: Interaction effect between `candidate name` and `state`, capturing the combined influence of the candidate and state.
--   $\beta_6$: Interaction effect between `recency weight` and `state`, reflecting the joint impact of recency and state on `pct`.
--   $\beta_7$: Three-way interaction between `candidate name`, `recency weight`, and `state`, representing the combined effect of candidate, recency, and state.
--   $\beta_8$: Main effect of `sample size`, showing the influence of sample size on `pct`.
--   $\beta_9$: Main effect of `pollscore`, capturing the influence of the poll score on `pct`.
--   $\beta_{10}$: Main effect of `numeric grade`, indicating the impact of the poll’s numeric grade on `pct`.
+-   $\text{Price Change}_i$: The change in price for product $i$.
+-   $\beta_0$: Intercept term, representing the predicted price change when all independent variables are 0.
+-   $\beta_1$: Main effect of $\text{Vendor}_i$, capturing the influence of the vendor on the price change.
+-   $\beta_2$: Main effect of $\text{Category}_i$, representing the impact of the product category (e.g., beverage, solid snack, fruit) on the price change.
+-   $\beta_3$: Main effect of $\text{Month}_i$, reflecting the influence of the month of the year on price change.
+-   $\beta_4$: Main effect of $\text{Avg Rainfall}_i$, capturing the influence of average rainfall on the price change.
 -   $\epsilon_i$: The error term, assumed to follow a normal distribution with mean 0.
+
 
 ### Model Interpretation
 
@@ -409,40 +318,44 @@ The model also includes several other predictors, including sample size, poll sc
 #| warning: false
 #| message: false
 
-# Extract summary statistics and add variables included in each model
-model_summary <- tibble(
-  Model = c("Model 1", "Model 2", "Model 3", "Model 4", "Model 5"),
-  Variables = c(
-    linebreak("Sample Size, Poll Score, Numeric Grade, State"), 
-    linebreak("Sample Size, Poll Score, Numeric Grade, State, Recency Weight"), 
-    linebreak("Sample Size, Poll Score, Numeric Grade, State, Recency Weight, Candidate Name"),
-    linebreak("Candidate Name × State, Recency, Sample Size, Poll Score, Numeric Grade, State"),
-    linebreak("Candidate Name × State × Recency, Sample Size, Poll Score, Numeric Grade, State")
-  ),
-  `R²` = round(c(summary(model1)$r.squared, 
-                 summary(model2)$r.squared, 
-                 summary(model3)$r.squared,
-                 summary(model4)$r.squared,
-                 summary(model5)$r.squared), 5),
-  `Adjusted R²` = round(c(summary(model1)$adj.r.squared,
-                          summary(model2)$adj.r.squared, 
-                          summary(model3)$adj.r.squared,
-                          summary(model4)$adj.r.squared,
-                          summary(model5)$adj.r.squared), 5),
-  `AIC` = round(c(AIC(model1), AIC(model2), AIC(model3), AIC(model4), AIC(model5)), 5),
-  `BIC` = round(c(BIC(model1), BIC(model2), BIC(model3), BIC(model4), BIC(model5)), 5),
-  `RMSE` = round(c(sqrt(mean(residuals(model1)^2)), 
-                   sqrt(mean(residuals(model2)^2)), 
-                   sqrt(mean(residuals(model3)^2)),
-                   sqrt(mean(residuals(model4)^2)),
-                   sqrt(mean(residuals(model5)^2))), 5)
+# Extract OOB error
+oob_error <- model_rf$mse[model_rf$ntree]
+
+# Number of trees
+num_trees <- model_rf$ntree
+
+# Extract variable importance
+var_importance <- importance(model_rf)
+importance_table <- as_tibble(var_importance, rownames = "Variable") %>%
+  rename(
+    `%IncMSE` = `%IncMSE`,
+    `IncNodePurity` = `IncNodePurity`
+  )
+
+# Construct a summary table for model metrics
+model_metrics <- tibble(
+  Metric = c("Number of Trees", "Out-of-Bag Error (MSE)"),
+  Value = c(num_trees, round(oob_error, 5))
 )
 
-# Display the table using kable
-model_summary %>%
+# Display model metrics table
+model_metrics %>%
   kable(digits = 5, escape = FALSE) %>%
   kable_styling(full_width = FALSE) %>%
-  column_spec(2, width = "8em")
+  add_header_above(c(" " = 1, "Random Forest Model Metrics" = 1)) %>%
+  column_spec(1, bold = TRUE, width = "12em")
+
+# Display variable importance table
+importance_table %>%
+  mutate(
+    `%IncMSE` = round(`%IncMSE`, 2),
+    `IncNodePurity` = round(`IncNodePurity`, 2)
+  ) %>%
+  kable(digits = 2, escape = FALSE) %>%
+  kable_styling(full_width = FALSE) %>%
+  add_header_above(c(" " = 1, "Variable Importance in Random Forest" = 2)) %>%
+  column_spec(1, bold = TRUE, width = "12em")
+
 
 ```
 
@@ -463,35 +376,7 @@ Since we identified the limitations of linear models in handling interaction ter
 #| warning: false
 #| message: false
 
-tree_data <- cleaned_data
 
-tree_data$state_candidate_recency <- with(tree_data, interaction(state, candidate_name, recency_weight))
-
-interaction_terms <- model.matrix(~state * candidate_name * recency_weight - 1, data=tree_data)
-tree_data <- cbind(tree_data, interaction_terms)
-main_effects <- tree_data[c("sample_size", "pollscore", "numeric_grade")]
-X <- cbind(main_effects, interaction_terms)
-y <- tree_data$pct
-
-set.seed(123)
-trainIndex <- createDataPartition(y, p = 0.8, list = FALSE)
-train_data <- X[trainIndex,]
-test_data <- X[-trainIndex,]
-train_y <- y[trainIndex]
-test_y <- y[-trainIndex]
-
-tuneGrid <- expand.grid(mtry = c(2, 5, 10))
-
-set.seed(123)
-rf_model <- train(
-  x = train_data,
-  y = train_y,
-  method = "rf",
-  tuneGrid = tuneGrid,
-  trControl = trainControl(method = "cv", number = 10),
-  metric = "RMSE",
-  ntree = 200
-)
 ```
 
 
@@ -503,27 +388,6 @@ rf_model <- train(
 #| message: false
 
 
-tree_data <- tree_data[, !duplicated(names(tree_data))]
-
-tree_data <- tree_data %>%
-  mutate(PredictedPercentage = predict(rf_model, newdata = tree_data))
-
-results <- tree_data %>%
-  group_by(candidate_name) %>%
-  summarise(AveragePredictedPercentage = mean(PredictedPercentage))
-
-total_percentage <- sum(results$AveragePredictedPercentage)
-
-results <- results %>%
-  mutate(NormalizedPercentage = (AveragePredictedPercentage / total_percentage) * 100)
-
-results %>%
-  kable(
-    col.names = c("Candidate Name", "Average Predicted Percentage", "Normalized Percentage"),
-    digits = 2,
-    booktabs = TRUE
-  ) %>%
-  kable_styling(latex_options = c("striped", "scale_down"))
 
 ```
 
@@ -540,26 +404,6 @@ results %>%
 #| warning: false
 
 
-cleaned_data <- cleaned_data %>%
-  mutate(PredictedPercentage = predict(model5, newdata = cleaned_data))
-
-trump_summary <- cleaned_data %>% filter(candidate_name == "Donald Trump") %>%
-  summarise(
-    Avg_Support = mean(PredictedPercentage),
-    Median_Support = median(PredictedPercentage),
-    Min_Support = min(PredictedPercentage),
-    Max_Support = max(PredictedPercentage),
-    SD_Support = sd(PredictedPercentage),
-    Total_Polls = n()
-  )
-
-trump_summary %>%
-  kable(
-    col.names = c("Avg Support", "Median Support", "Min Support", "Max Support", "SD of Support", "Total Polls"),
-    digits = 2,
-    booktabs = TRUE
-  ) %>%
-  kable_styling(latex_options = c("striped", "scale_down"))
 
 ```
 
@@ -572,22 +416,7 @@ trump_summary %>%
 #| echo: false
 #| eval: true
 
-results <- cleaned_data %>%
-  group_by(candidate_name) %>%
-  summarise(AveragePredictedPercentage = mean(PredictedPercentage))
 
-total_percentage <- sum(results$AveragePredictedPercentage)
-
-results <- results %>%
-  mutate(NormalizedPercentage = (AveragePredictedPercentage / total_percentage) * 100)
-
-results %>%
-  kable(
-    col.names = c("Candidate Name", "Average Predicted Percentage", "Normalized Percentage"),
-    digits = 2,
-    booktabs = TRUE
-  ) %>%
-  kable_styling(latex_options = c("striped", "scale_down"))
 
 ```
 
@@ -600,56 +429,7 @@ results %>%
 #| echo: false
 #| eval: true
 
-trump_data <- cleaned_data %>%
-  filter(candidate_name == "Donald Trump") %>%
-  mutate(PredictedPercentage = predict(model5, newdata = .)) %>%
-  group_by(state) %>%
-  summarise(Trump_Predicted = mean(PredictedPercentage, na.rm = TRUE))
 
-# Generate predictions for Harris and calculate average by state
-harris_data <- cleaned_data %>%
-  filter(candidate_name == "Kamala Harris") %>%
-  mutate(PredictedPercentage = predict(model5, newdata = .)) %>%
-  group_by(state) %>%
-  summarise(Harris_Predicted = mean(PredictedPercentage, na.rm = TRUE))
-
-# Combine results into a single dataset
-state_results <- trump_data %>%
-  full_join(harris_data, by = "state")
-
-# Replace NA values with 0 for comparison
-state_results <- state_results %>%
-  mutate(
-    Trump_Predicted = replace_na(Trump_Predicted, 0),
-    Harris_Predicted = replace_na(Harris_Predicted, 0)
-  )
-
-# Determine the winner in each state
-state_results <- state_results %>%
-  mutate(Winner = ifelse(Trump_Predicted > Harris_Predicted, "Donald Trump", "Kamala Harris"))
-
-# Create the map with improved aesthetics and no axis labels or ticks
-plot_usmap(data = state_results, regions = "states", values = "Winner", color = "white", size = 0.3) +
-  scale_fill_manual(
-    values = c("Donald Trump" = "#B2182B", "Kamala Harris" = "#2166AC"),  # Darker red and blue
-    name = "Projected Winner"
-  ) +
-  labs(
-    subtitle = "Predicted Average Vote Percentages\nfor Donald Trump vs. Kamala Harris",
-    caption = "Data Source: Model Predictions"
-  ) +
-  theme_minimal() +
-  theme(
-    legend.position = "bottom",
-    legend.title = element_text(size = 12, face = "bold"),
-    legend.text = element_text(size = 10),
-    plot.title = element_text(size = 20, face = "bold", hjust = 0.5),  # Center-align and enlarge title
-    plot.subtitle = element_text(size = 14, hjust = 0.5),  # Center-align subtitle
-    plot.caption = element_text(size = 10, face = "italic", hjust = 1),  # Right-align caption
-    panel.grid = element_blank(),  # Remove all grid lines for a cleaner look
-    axis.text = element_blank(),   # Remove axis text (latitude/longitude labels)
-    axis.ticks = element_blank()   # Remove axis ticks
-  )
 ```
 
 [@fig-map] shows the predicted winner by state. Red indicates Trump’s predicted lead, blue indicates Harris’s lead, and gray marks states with insufficient data to predict the winner. This map visually represents regional support patterns for both candidates across the country. Trump shows strength in parts of the Midwest and South, while Harris performs better in parts of the Northeast and West. The table below [@tbl-model-state] presents the specific support rate figures.
@@ -661,15 +441,7 @@ plot_usmap(data = state_results, regions = "states", values = "Winner", color = 
 #| eval: true
 #| warning: false
 
-# Display the results in a table
-state_results %>%
-  arrange(state) %>%
-  kable(
-    col.names = c("State", "Donald Trump (%)", "Kamala Harris (%)", "Projected Winner"),
-    digits = 2,
-    booktabs = TRUE
-  ) %>%
-  kable_styling(latex_options = c("striped", "scale_down"))
+
 
 ```
 

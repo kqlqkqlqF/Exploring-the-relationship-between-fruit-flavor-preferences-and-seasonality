@@ -13,6 +13,7 @@ library(tidyverse)
 library(janitor)
 library(arrow)
 library(lubridate)
+library(stringr)
 
 #### Clean data ####
 # read the dataset
@@ -23,65 +24,55 @@ product_data <- read_csv("data/01-raw_data/hammer-4-product.csv")
 rain_data <- read_parquet("data/01-raw_data/rainfall_data.parquet")
 
 
-# Filter rows where 'product_name' contains 'watermelon' (case-insensitive)
-product_data_watermelon <- product_data[grepl("watermelon", product_data$product_name, ignore.case = TRUE), ]
 
-# Remove rows where 'product_name' or 'concatted' contains 'yogurt' (case-insensitive)
-product_data_watermelon <- product_data_watermelon %>%
-  filter(!grepl("yogurt", product_name, ignore.case = TRUE) & 
-           !grepl("yogurt", concatted, ignore.case = TRUE) & 
-           !grepl("tea bag", product_name, ignore.case = TRUE) & 
-           !grepl("tea bag", concatted, ignore.case = TRUE) &
-           !grepl("teabag", product_name, ignore.case = TRUE) & 
-           !grepl("teabag", concatted, ignore.case = TRUE))
+#### Data Cleaning for Banana and Strawberry Data ####
 
-# Create a new column 'category' based on conditions in product_name and concatted columns
-product_data_watermelon$category <- ifelse(
-  grepl("\\d+(ML|ml|L|l)", product_data_watermelon$product_name) | 
-    grepl("\\d+(ML|ml|L|l)", product_data_watermelon$concatted), "Beverage",
+# Remove rows where "banana" and "strawberry" both appear in product_name or concatted
+product_data <- product_data %>%
+  filter(!(str_detect(tolower(product_name), "banana") & str_detect(tolower(product_name), "strawberry")) & 
+           !(str_detect(tolower(concatted), "banana") & str_detect(tolower(concatted), "strawberry")))
+
+# Filter rows where 'product_name' contains 'banana' (case-insensitive)
+product_data_banana <- product_data[grepl("banana", product_data$product_name, ignore.case = TRUE), ]
+
+# Create a new column 'category' based on conditions in product_name 
+product_data_banana$category <- ifelse(
+  grepl("\\d+(ML|ml|L|l)", product_data_banana$product_name) | 
+    grepl("\\d+(ML|ml|L|l)", product_data_banana$concatted), "Beverage",
   ifelse(
-    grepl("\\d+(g|G|kg|KG)", product_data_watermelon$product_name) | 
-      grepl("\\d+(g|G|kg|KG)", product_data_watermelon$concatted), "Solid Snacks",
+    grepl("\\d+(g|G|kg|KG)", product_data_banana$product_name) | 
+      grepl("\\d+(g|G|kg|KG)", product_data_banana$concatted), "Solid Snacks",
     "Fruit"
   )
 )
 
 # Remove the specified columns from the dataset
-product_data_watermelon <- product_data_watermelon %>%
+product_data_banana <- product_data_banana %>%
   select(-concatted, -units, -brand, -detail_url, -sku, -upc)
 
 
-# Create product_data_pomegranate with rows that contain 'Pomegranate' in product_name
-product_data_pomegranate <- product_data %>%
-  filter(grepl("Pomegranate", product_name, ignore.case = TRUE))
-
-# Remove rows where 'product_name' or 'concatted' contains 'yogurt' (case-insensitive)
-product_data_pomegranate <- product_data_pomegranate %>%
-  filter(!grepl("yogurt", product_name, ignore.case = TRUE) & 
-           !grepl("yogurt", concatted, ignore.case = TRUE) & 
-           !grepl("tea bag", product_name, ignore.case = TRUE) & 
-           !grepl("tea bag", concatted, ignore.case = TRUE) &
-           !grepl("teabag", product_name, ignore.case = TRUE) & 
-           !grepl("teabag", concatted, ignore.case = TRUE))
+# Create product_data_strawberry with rows that contain 'strawberry' in product_name
+product_data_strawberry <- product_data %>%
+  filter(grepl("strawberry", product_name, ignore.case = TRUE))
 
 # Create a new column 'category' based on conditions in product_name and concatted columns
-product_data_pomegranate$category <- ifelse(
-  grepl("\\d+(ML|ml|L|l)", product_data_pomegranate$product_name) | 
-    grepl("\\d+(ML|ml|L|l)", product_data_pomegranate$concatted), "Beverage",
+product_data_strawberry$category <- ifelse(
+  grepl("\\d+(ML|ml|L|l)", product_data_strawberry$product_name) | 
+    grepl("\\d+(ML|ml|L|l)", product_data_strawberry$concatted), "Beverage",
   ifelse(
-    grepl("\\d+(g|G|kg|KG)", product_data_pomegranate$product_name) | 
-      grepl("\\d+(g|G|kg|KG)", product_data_pomegranate$concatted), "Solid Snacks",
+    grepl("\\d+(g|G|kg|KG)", product_data_strawberry$product_name) | 
+      grepl("\\d+(g|G|kg|KG)", product_data_strawberry$concatted), "Solid Snacks",
     "Fruit"
   )
 )
 
 # Remove the specified columns
-product_data_pomegranate <- product_data_pomegranate %>%
+product_data_strawberry <- product_data_strawberry %>%
   select(-concatted, -units, -brand, -detail_url, -sku, -upc)
 
-# Filter rows in raw_data where product_id is contained in the 'id' column of either product_data_watermelon or product_data_pomegranate
+# Filter rows in raw_data where product_id is contained in the 'id' column of either product_data_banana or product_data_strawberry
 raw_data <- raw_data %>%
-  filter(product_id %in% c(product_data_watermelon$id, product_data_pomegranate$id))
+  filter(product_id %in% c(product_data_banana$id, product_data_strawberry$id))
 
 raw_data <- raw_data %>%
   filter(!is.na(price_per_unit))
@@ -135,8 +126,8 @@ for(i in 1:length(months)) {
     summarise(!!paste0("avg_price_", month_name) := mean(current_price, na.rm = TRUE)) %>%
     ungroup()
   
-  # Step 5: Merge the calculated average price for the month into product_data_watermelon
-  product_data_watermelon <- product_data_watermelon %>%
+  # Step 5: Merge the calculated average price for the month into product_data_banana
+  product_data_banana <- product_data_banana %>%
     left_join(avg_price_month, by = c("id" = "product_id"))
 }
 
@@ -153,25 +144,25 @@ for(i in 1:length(months)) {
     summarise(!!paste0("avg_price_", month_name) := mean(current_price, na.rm = TRUE)) %>%
     ungroup()
   
-  # Step 5: Merge the calculated average price for the month into product_data_pomegranate
-  product_data_pomegranate <- product_data_pomegranate %>%
+  # Step 5: Merge the calculated average price for the month into product_data_strawberry
+  product_data_strawberry <- product_data_strawberry %>%
     left_join(avg_price_month, by = c("id" = "product_id"))
 }
 
-# For product_data_watermelon
-product_data_watermelon <- product_data_watermelon %>%
+# For product_data_banana
+product_data_banana <- product_data_banana %>%
   # Remove rows where all avg_price columns are NA
   filter(rowSums(is.na(select(., avg_price_June:avg_price_November))) < ncol(select(., avg_price_June:avg_price_November)))
 
-# For product_data_pomegranate
-product_data_pomegranate <- product_data_pomegranate %>%
+# For product_data_strawberry
+product_data_strawberry <- product_data_strawberry %>%
   # Remove rows where all avg_price columns are NA
   filter(rowSums(is.na(select(., avg_price_June:avg_price_November))) < ncol(select(., avg_price_June:avg_price_November)))
 
-# Save product_data_watermelon as a Parquet file
-write_parquet(product_data_watermelon, "data/02-analysis_data/watermelon_data.parquet")
-# Save product_data_pomegranate as a Parquet file
-write_parquet(product_data_pomegranate, "data/02-analysis_data/pomegranate_data.parquet")
+# Save product_data_banana as a Parquet file
+write_parquet(product_data_banana, "data/02-analysis_data/banana_data.parquet")
+# Save product_data_strawberry as a Parquet file
+write_parquet(product_data_strawberry, "data/02-analysis_data/strawberry_data.parquet")
 
 # Keep only the 'dataCollectionDate' and 'airTemp' columns
 rain_data <- rain_data %>%
@@ -208,14 +199,14 @@ write_parquet(average_rainfall, "data/02-analysis_data/average_rain_data.parquet
 
 #### Modeling data ####
 
-# Add the Flavor column and assign "Watermelon" to all rows
-product_data_watermelon$flavor <- "Watermelon"
+# Add the Flavor column and assign "banana" to all rows
+product_data_banana$flavor <- "banana"
 
-# Add the Flavor column and assign "Watermelon" to all rows
-product_data_pomegranate$flavor <- "Pomegranate"
+# Add the Flavor column and assign "banana" to all rows
+product_data_strawberry$flavor <- "strawberry"
 
 # Combine
-product_data_combined <- rbind(product_data_watermelon, product_data_pomegranate)
+product_data_combined <- rbind(product_data_banana, product_data_strawberry)
 
 # Pivot the combined dataset to long format
 product_data_long <- product_data_combined %>%

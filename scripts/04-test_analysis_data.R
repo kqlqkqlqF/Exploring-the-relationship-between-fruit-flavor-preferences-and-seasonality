@@ -14,24 +14,24 @@
 library(tidyverse)
 library(arrow)
 
-analysis_watermelon_data <- read_parquet("data/02-analysis_data/watermelon_data.parquet")
+analysis_banana_data <- read_parquet("data/02-analysis_data/banana_data.parquet")
 analysis_rain_data <- read_parquet("data/02-analysis_data/average_rain_data.parquet")
-analysis_pomegranate_data <- read_parquet("data/02-analysis_data/pomegranate_data.parquet")
+analysis_strawberry_data <- read_parquet("data/02-analysis_data/strawberry_data.parquet")
 
 
-#### Test for Watermelon and Pomegranate Data ####
+#### Test for banana and strawberry Data ####
 
 # Test: No overlapping IDs
-test_unique_ids <- function(watermelon_data, pomegranate_data) {
-  common_ids <- intersect(watermelon_data$id, pomegranate_data$id)
+test_unique_ids <- function(banana_data, strawberry_data) {
+  common_ids <- intersect(banana_data$id, strawberry_data$id)
   if (length(common_ids) == 0) {
-    cat("Test passed: No overlapping IDs between watermelon and pomegranate data.\n")
+    cat("Test passed: No overlapping IDs between banana and strawberry data.\n")
   } else {
     stop("Test failed: Overlapping IDs found.")
   }
 }
 
-test_unique_ids(analysis_watermelon_data, analysis_pomegranate_data)
+test_unique_ids(analysis_banana_data, analysis_strawberry_data)
 
 
 # Test: Vendor values are valid
@@ -45,22 +45,22 @@ test_valid_vendors <- function(data) {
   }
 }
 
-test_valid_vendors(analysis_watermelon_data)
-test_valid_vendors(analysis_pomegranate_data)
+test_valid_vendors(analysis_banana_data)
+test_valid_vendors(analysis_strawberry_data)
 
 
-# Test: Check column count for product_data_watermelon
-if (ncol(analysis_watermelon_data) == 10) {
-  cat("Test Passed: analysis_data_watermelon has 10 columns.")
+# Test: Check column count for product_data_banana
+if (ncol(analysis_banana_data) == 10) {
+  cat("Test Passed: analysis_data_banana has 10 columns.")
 } else {
-  stop(paste("Test Failed: analysis_data_watermelon has", ncol(analysis_watermelon_data), "columns; expected 10 columns."))
+  stop(paste("Test Failed: analysis_data_banana has", ncol(analysis_banana_data), "columns; expected 10 columns."))
 }
 
-# Test: Check column count for product_data_pomegranate
-if (ncol(analysis_pomegranate_data) == 10) {
-  cat("Test Passed: analysis_data_pomegranate has 10 columns.")
+# Test: Check column count for product_data_strawberry
+if (ncol(analysis_strawberry_data) == 10) {
+  cat("Test Passed: analysis_data_strawberry has 10 columns.")
 } else {
-  stop(paste("Test Failed: analysis_data_pomegranate has", ncol(analysis_pomegranate_data), "columns; expected 10 columns."))
+  stop(paste("Test Failed: analysis_data_strawberry has", ncol(analysis_strawberry_data), "columns; expected 10 columns."))
 }
 
 
@@ -77,8 +77,8 @@ test_avg_prices <- function(data) {
   }
 }
 
-test_avg_prices(analysis_watermelon_data)
-test_avg_prices(analysis_pomegranate_data)
+test_avg_prices(analysis_banana_data)
+test_avg_prices(analysis_strawberry_data)
 
 
 #### Test for Rain Data ####

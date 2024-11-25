@@ -52,34 +52,19 @@ rf_model <- randomForest(price_change ~ vendor + category + month + avg_rainfall
                          importance = TRUE)
 
 
-# 4. View the model summary
-print(rf_model)
-
-# 5. Check the importance of each predictor
-importance(rf_model)
+# 1. Train a linear regression model
+lm_model <- lm(price_change ~ vendor + category  + month + avg_rainfall, data = model_data)
 
 
 # 1. Train a linear regression model
-lm_model <- lm(price_change ~ vendor + category + month + avg_rainfall, data = model_data)
+lm_model_2 <- lm(price_change ~ category  + month + avg_rainfall, data = model_data)
 
-# 2. View the model summary
-summary(lm_model)
-
-# 3. Predict using the linear model
-lm_predictions <- predict(lm_model, newdata = model_data)
-
-# 4. Evaluate the model performance (RMSE)
-lm_rmse <- sqrt(mean((lm_predictions - model_data$price_change)^2))
-cat("RMSE for Linear Model:", lm_rmse, "\n")
-
-# 5. Optionally, plot the residuals to check the assumptions
-plot(lm_model$residuals)
 
 
 #### Save model ####
 saveRDS(rf_model, file = "models/model_rf.rds")
-saveRDS(lm_model, file = "models/mode_linear.rds")
-
+saveRDS(lm_model, file = "models/model_linear_1.rds")
+saveRDS(lm_model_2, file = "models/model_linear_2.rds")
 
 
 

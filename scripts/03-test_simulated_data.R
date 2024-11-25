@@ -14,24 +14,24 @@
 library(tidyverse)
 library(arrow)
 
-test_watermelon_data <- read_parquet("data/00-simulated_data/simulated_watermelon_data.parquet")
+test_banana_data <- read_parquet("data/00-simulated_data/simulated_banana_data.parquet")
 test_rain_data <- read_parquet("data/00-simulated_data/simulated_rain_data.parquet")
-test_pomegranate_data <- read_parquet("data/00-simulated_data/simulated_pomegranate_data.parquet")
+test_strawberry_data <- read_parquet("data/00-simulated_data/simulated_strawberry_data.parquet")
 
 
-#### Test for Watermelon and Pomegranate Data ####
+#### Test for banana and strawberry Data ####
 
 # Test: No overlapping IDs
-test_unique_ids <- function(watermelon_data, pomegranate_data) {
-  common_ids <- intersect(watermelon_data$id, pomegranate_data$id)
+test_unique_ids <- function(banana_data, strawberry_data) {
+  common_ids <- intersect(banana_data$id, strawberry_data$id)
   if (length(common_ids) == 0) {
-    cat("Test passed: No overlapping IDs between watermelon and pomegranate data.\n")
+    cat("Test passed: No overlapping IDs between banana and strawberry data.\n")
   } else {
     stop("Test failed: Overlapping IDs found.")
   }
 }
 
-test_unique_ids(test_watermelon_data, test_pomegranate_data)
+test_unique_ids(test_banana_data, test_strawberry_data)
 
 
 # Test: Vendor values are valid
@@ -45,53 +45,53 @@ test_valid_vendors <- function(data) {
   }
 }
 
-test_valid_vendors(test_watermelon_data)
-test_valid_vendors(test_pomegranate_data)
+test_valid_vendors(test_banana_data)
+test_valid_vendors(test_strawberry_data)
 
 
-# Test: Check column count for product_data_watermelon
-if (ncol(test_watermelon_data) == 10) {
-  cat("Test Passed: product_data_watermelon has 10 columns.")
+# Test: Check column count for product_data_banana
+if (ncol(test_banana_data) == 10) {
+  cat("Test Passed: product_data_banana has 10 columns.")
 } else {
-  stop(paste("Test Failed: product_data_watermelon has", ncol(test_watermelon_data), "columns; expected 10 columns."))
+  stop(paste("Test Failed: product_data_banana has", ncol(test_banana_data), "columns; expected 10 columns."))
 }
 
-# Test: Check column count for product_data_pomegranate
-if (ncol(test_pomegranate_data) == 10) {
-  cat("Test Passed: product_data_pomegranate has 10 columns.")
+# Test: Check column count for product_data_strawberry
+if (ncol(test_strawberry_data) == 10) {
+  cat("Test Passed: product_data_strawberry has 10 columns.")
 } else {
-  stop(paste("Test Failed: product_data_pomegranate has", ncol(test_pomegranate_data), "columns; expected 10 columns."))
+  stop(paste("Test Failed: product_data_strawberry has", ncol(test_strawberry_data), "columns; expected 10 columns."))
 }
 
 
 # Map product_name to category
-category_mapping_pomegranate <- c(
-  "Fresh Pomegranate" = "fruit",
-  "Pomegranate Flavored Drink" = "beverage",
-  "Pomegranate Flavored Candy" = "solid snack",
-  "Pomegranate Popsicle" = "solid snack",
-  "Pomegranate Juice" = "beverage",
-  "Large Red Pomegranate" = "fruit",
-  "Pomegranate Sorbet" = "solid snack",
-  "Pomegranate Jam" = "solid snack",
-  "Pomegranate Granola Bar" = "solid snack",
-  "Pomegranate Cake" = "solid snack",
-  "Pomegranate Smoothie" = "beverage"
+category_mapping_strawberry <- c(
+  "Fresh strawberry" = "fruit",
+  "strawberry Flavored Drink" = "beverage",
+  "strawberry Flavored Candy" = "solid snack",
+  "strawberry Popsicle" = "solid snack",
+  "strawberry Juice" = "beverage",
+  "Large Red strawberry" = "fruit",
+  "strawberry Sorbet" = "solid snack",
+  "strawberry Jam" = "solid snack",
+  "strawberry Granola Bar" = "solid snack",
+  "strawberry Cake" = "solid snack",
+  "strawberry Smoothie" = "beverage"
 )
 
 # Map product_name to category
-category_mapping_watermelon <- c(
-  "Seedless Sweet Baby Mini Watermelon" = "fruit",
-  "Watermelon Flavored Tea Drink" = "beverage",
-  "Watermelon Flavored Gummy" = "solid snack",
-  "Watermelon Popsicle" = "solid snack",
-  "Watermelon Apple Flavored Juice" = "beverage",
-  "Watermelon Slices" = "fruit",
-  "Watermelon Candy" = "solid snack",
-  "Sparkling Watermelon Beverage" = "beverage",
-  "Watermelon Sorbet" = "solid snack",
-  "Watermelon Cake" = "solid snack",
-  "Watermelon Jam" = "solid snack"
+category_mapping_banana <- c(
+  "Seedless Sweet Baby Mini banana" = "fruit",
+  "banana Flavored Tea Drink" = "beverage",
+  "banana Flavored Gummy" = "solid snack",
+  "banana Popsicle" = "solid snack",
+  "banana Apple Flavored Juice" = "beverage",
+  "banana Slices" = "fruit",
+  "banana Candy" = "solid snack",
+  "Sparkling banana Beverage" = "beverage",
+  "banana Sorbet" = "solid snack",
+  "banana Cake" = "solid snack",
+  "banana Jam" = "solid snack"
 )
 
 
@@ -107,8 +107,8 @@ test_product_category_mapping <- function(data, category_mapping) {
   }
 }
 
-test_product_category_mapping(test_watermelon_data, category_mapping_watermelon)
-test_product_category_mapping(test_pomegranate_data, category_mapping_pomegranate)
+test_product_category_mapping(test_banana_data, category_mapping_banana)
+test_product_category_mapping(test_strawberry_data, category_mapping_strawberry)
 
 
 # Test: Average prices are within range or NA
@@ -124,8 +124,8 @@ test_avg_prices <- function(data) {
   }
 }
 
-test_avg_prices(test_watermelon_data)
-test_avg_prices(test_pomegranate_data)
+test_avg_prices(test_banana_data)
+test_avg_prices(test_strawberry_data)
 
 
 #### Test for Rain Data ####

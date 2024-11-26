@@ -19,32 +19,7 @@ library(arrow)
 model_data <- read_parquet("data/02-analysis_data/combined_model_data.parquet")
 
 
-# 1. Preprocess the data: Ensure categorical variables are factors
-model_data <- model_data %>%
-  mutate(
-    vendor = as.factor(vendor),
-    category = as.factor(category),
-    flavor = as.factor(flavor),
-    month = as.factor(month)  # Month as a factor for modeling
-  )
-
-# 2. Create the target variable: Change in average price (monthly_avg_price - previous month's price)
-# Sort by id and month
-model_data <- model_data %>%
-  arrange(id, month)
-
-# Calculate the change in price (current month - previous month) for each product
-model_data <- model_data %>%
-  group_by(id) %>%
-  mutate(price_change = monthly_avg_price - lag(monthly_avg_price)) %>%
-  ungroup()
-
-# We need to remove rows where price_change is NA (because there's no previous month for those)
-model_data <- model_data %>%
-  filter(!is.na(price_change))
-
-# 3. Train the Random Forest model to predict the change in average price
-# We'll use vendor, category, month, and rainfall (avg_rainfall) as predictors
+# use vendor, category, month, and rainfall (avg_rainfall) as predictors
 
 rf_model <- randomForest(price_change ~ vendor + category + month + avg_rainfall, 
                          data = model_data, 

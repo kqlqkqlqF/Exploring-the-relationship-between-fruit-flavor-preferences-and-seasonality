@@ -446,6 +446,36 @@ Since we identified the limitations of linear models in handling interaction ter
 #| echo: false
 #| warning: false
 
+# Step 1: Predict price changes for the existing dataset
+model_data <- model_data %>%
+  mutate(Predicted_Price_Change = predict(model_linear_2, newdata = model_data))
+
+# Step 2: Filter the dataset for 'strawberry' and 'banana' flavor products
+flavor_data <- model_data %>%
+  filter(flavor %in% c("strawberry", "banana"))
+
+# Step 3: Calculate average predicted price change for each flavor across the dataset
+flavor_summary <- flavor_data %>%
+  group_by(flavor) %>%
+  summarise(
+    Avg_Price_Change = mean(Predicted_Price_Change, na.rm = TRUE),
+    Median_Price_Change = median(Predicted_Price_Change, na.rm = TRUE),
+    Min_Price_Change = min(Predicted_Price_Change, na.rm = TRUE),
+    Max_Price_Change = max(Predicted_Price_Change, na.rm = TRUE),
+    SD_Price_Change = sd(Predicted_Price_Change, na.rm = TRUE),
+    Total_Products = n()
+  )
+
+# Step 4: Present the summary using kable
+flavor_summary %>%
+  kable(
+    col.names = c("Flavor", "Avg Change", "Median Change", "Min Change", "Max Change", "SD of Change", "Total Products"),
+    digits = 3,
+    booktabs = TRUE,
+    caption = "Summary of Predicted Price Changes for Strawberry and Banana Products"
+  ) %>%
+  kable_styling(latex_options = c("striped", "scale_down"))
+
 
 
 ```
@@ -453,12 +483,62 @@ Since we identified the limitations of linear models in handling interaction ter
 [@tbl-trump] shows the statistical information of the predicted support rate for Trump. The average support rate is 44.51%, with a median of 44.44%. The support rate ranges from a minimum of 28% to a maximum of 67.6%. The standard deviation of the support rate is 3.98, indicating some variability in the predictions. The data is derived from 2248 polls.
 
 ```{r}
-#| label: tbl-modelresults
-#| tbl-cap: "Predicted Average Supporting Percentages for Donald Trump vs. Kamala Harris"
 #| warning: false
 #| echo: false
 #| eval: true
 
+# Step 1: Add '12' as a new level to the factor levels of the 'month' column in model_data
+model_data_1 <- model_data %>%
+  mutate(month = factor(month, levels = c(levels(month), "12")))
+
+# Step 2: Create the December data
+december_data <- model_data_1 %>%
+  filter(month == "11") %>% # Use "11" as a factor level to match
+  mutate(
+    month = "12", # Set month to December as a string
+    monthly_avg_price = monthly_avg_price * (1 + ifelse(flavor == "banana", 0.009, 0.010)) # Apply predicted change
+  )
+
+# Step 3: Combine with the original dataset
+predicted_data <- bind_rows(model_data_1, december_data)
+
+
+# Step 4: Update price_change for December
+predicted_data <- predicted_data %>%
+  mutate(price_change = ifelse(
+    month == "12" & flavor == "banana", 0.009,
+    ifelse(month == "12" & flavor == "strawberry", 0.01, price_change)
+  ))
+
+
+
+```
+
+```{r}
+#| label: fig-result
+#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+# Create the plot for price distribution by month
+ggplot(predicted_data, aes(x = as.factor(month), y = Predicted_Price_Change, color = Predicted_Price_Change)) +
+  geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
+  geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
+  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  labs(
+    x = "Month",
+    y = "Average Price",
+    title = "Average Price Distribution by Month"
+  ) +
+  theme_minimal() +
+  facet_wrap(~flavor) +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12)
+  )
 
 
 ```
@@ -466,11 +546,62 @@ Since we identified the limitations of linear models in handling interaction ter
 [@tbl-modelresults] presents the model's average predicted supporting percentages for Donald Trump and Kamala Harris, along with their normalized percentages. According to the model's predictions, Donald Trump's average predicted supporting percentage is 44.51%, while Kamala Harris's is 43.86%. The normalized percentages adjust these predicted values to relative proportions, with Donald Trump at 50.37% and Kamala Harris at 49.63%. These results show that although Donald Trump's average predicted supporting percentage is slightly higher than Kamala Harris's, the support rates for both candidates are nearly equal, with Donald Trump holding a slight edge.
 
 ```{r}
-#| label: fig-map
-#| fig-cap: "Map of Projected Winner by State"
 #| warning: false
 #| echo: false
 #| eval: true
+
+
+# Step 1: Predict price changes for all rows in the dataset
+model_data_2 <- model_data %>%
+  mutate(predicted_price_change = predict(model_rf, newdata = model_data))
+
+# Step 2: Filter the dataset for November data
+november_data <- model_data_2 %>%
+  filter(month == "11")  # Match factor level as string
+
+# Step 3: Simulate December data
+december_data <- november_data %>%
+  mutate(
+    month = "12",  # Set month to December as a string
+    monthly_avg_price = monthly_avg_price * (1 + predicted_price_change)  # Apply predicted change
+  )
+
+# Step 4: Combine original data with the new December rows
+predicted_data_2 <- bind_rows(model_data_2, december_data)
+
+# Ensure that the month column is a factor with appropriate levels
+predicted_data_2 <- predicted_data_2 %>%
+  mutate(month = factor(month, levels = c(levels(model_data_2$month), "12")))
+
+
+```
+
+
+```{r}
+#| label: fig-result_2
+#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+# Create the plot for price distribution by month
+ggplot(predicted_data_2, aes(x = as.factor(month), y = predicted_price_change, color = predicted_price_change)) +
+  geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
+  geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
+  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  labs(
+    x = "Month",
+    y = "Average Price",
+    title = "Average Price Distribution by Month"
+  ) +
+  theme_minimal() +
+  facet_wrap(~flavor) +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12)
+  )
 
 
 ```

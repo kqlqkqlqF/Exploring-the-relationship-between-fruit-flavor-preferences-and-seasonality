@@ -284,6 +284,30 @@ average_rainfall_subset <- average_rainfall %>%
 product_data_long <- product_data_long %>%
   left_join(average_rainfall_subset, by = "month")
 
+# 1. Preprocess the data: Ensure categorical variables are factors
+product_data_long <- product_data_long %>%
+  mutate(
+    vendor = as.factor(vendor),
+    category = as.factor(category),
+    flavor = as.factor(flavor),
+    month = as.factor(month)  # Month as a factor for modeling
+  )
+
+# 2. Create the target variable: Change in average price (monthly_avg_price - previous month's price)
+# Sort by id and month
+product_data_long <- product_data_long %>%
+  arrange(id, month)
+
+# Calculate the change in price (current month - previous month) for each product
+product_data_long <- product_data_long %>%
+  group_by(id) %>%
+  mutate(price_change = monthly_avg_price - lag(monthly_avg_price)) %>%
+  ungroup()
+
+# We need to remove rows where price_change is NA (because there's no previous month for those)
+product_data_long <- product_data_long %>%
+  filter(!is.na(price_change))
+
 # Save data_rain as a Parquet file
 write_parquet(product_data_long, "data/02-analysis_data/combined_model_data.parquet")
 

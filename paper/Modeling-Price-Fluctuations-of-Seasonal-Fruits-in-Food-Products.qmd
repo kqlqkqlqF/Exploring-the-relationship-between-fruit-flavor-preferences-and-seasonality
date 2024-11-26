@@ -1,5 +1,5 @@
 ---
-title: "Modeling Price Fluctuations of Seasonal Fruits in Food Products: A Predictive Analysis"
+title: "Modeling Price Change of Seasonal Fruits Flavored Food Products: A Predictive Analysis"
 subtitle: "Trump's Narrow Victory Over Harris by Less Than One Percent of the Supporting Rate"
 author: 
   - Yiyi Feng
@@ -33,17 +33,12 @@ library(tibble)
 library(here)
 library(modelsummary)
 library(tidyverse)
-library(sf)
 library(arrow)
 library(ggplot2)
 library(janitor)
-library(purrr)
 library(knitr)
 library(kableExtra)
-library(usmap)
-library(broom)
 library(caret)
-library(randomForest)
 library(rstanarm)
 
 model_data <- read_parquet(here::here("data/02-analysis_data/combined_model_data.parquet"))
@@ -68,21 +63,31 @@ The remainder of this paper is structured as follows: [@sec-data] provides an ov
 
 ## Overview
 
-In this analysis, we used R [@citeR] to investigate polling data on public sentiment leading up to the election. Our dataset, sourced from FiveThirtyEight [@fivethirtyeight2024], provides a detailed snapshot of shifting public opinion over time. We examined key factors influencing support percentages, including poll timing, pollster characteristics, and state-specific trends.
+In this analysis, we used R [@citeR] to investigate canadian grocery price data. Our dataset, sourced from Jacob Filipp's project hammer [@hammer], provided the change of canadian grocery price from 8 vendors: Voila, T&T, Loblaws, No Frills, Metro, Galleria, Walmart and Save-On-Foods, from February 28, 2024 to November 26, 2024 (when this article was written). We examined factors that might influencing the price of seasonal fruits flavored food, including vendor, rain fall, month and category of the food.
 
-Several R packages were vital for our data manipulation, modeling, and visualization efforts. The dplyr package provided efficient tools for data transformation and summarization [@dplyr], while modelsummary enhanced the presentation of model outputs in a clear and organized manner [@modelsummary]. We used sf for handling spatial data, enabling analysis of state-level dynamics in the election [@sf]. purrr streamlined functional programming, allowing for the application of functions across data structures [@purrr]. kableExtra created customizable tables to improve our data presentation [@kableExtra], and usmap facilitated mapping of electoral data across states [@usmap]. The broom package converted complex model outputs into tidy data frames for easier analysis [@broom]. Package caret provided a unified framework for building and evaluating machine learning models [@caret], while the randomForest package enabled the use of random forest modeling techniques for our predictive analysis [@randomForest]. Finally, testthat ensured the reliability of our analyses through code testing [@testthat]. Our workflow closely adhered to best practices, as outlined in [@tellingstories], enhancing the robustness of our predictive framework.
-
-Our group focused on Trump’s approval ratings, aiming to ensure the credibility of the data. To achieve this, we selected only pollsters with numeric grades above 2.0, and used data collected from November 15, 2022, to October 27, 2024.
+Several R packages were vital for our data manipulation, modeling, and visualization efforts. The dplyr package provided efficient tools for data transformation and summarization [@dplyr], while modelsummary enhanced the presentation of model outputs in a clear and organized manner [@modelsummary]. kableExtra created customizable tables to improve our data presentation [@kableExtra]. Finally, testthat ensured the reliability of our analyses through code testing [@testthat]. Our workflow closely adhered to best practices, as outlined in [@tellingstories], enhancing the robustness of our predictive framework.
+--------------------------------------
 
 ## Measurement
 	
-In this section, we will describe the process of converting raw poll data into a structured dataset for analysis. In this process, because this study focuses on studying the changes in Trump's support rate and predicting whether Trump can be successfully elected, all data collection and analysis will be carried out around Trump and his main opponent Harris. Raw poll data comes from actual polls conducted by various pollsters across the United States. Each pollster uses different methods, such as online panels and live phone surveys, to record whether the public supports Donald Trump. After the poll results are collected, they are aggregated into datasets, such as the dataset provided by FiveThirtyEight[@fivethirtyeight2024]. In this dataset, key factors include the start and end dates of the poll, the identity of the pollster, the state, the poll score, and the numeric grade, which is an indicator to evaluate the reliability of each poll. These parameters will be explained in detail below. This structured dataset allows us to analyze Trump's support patterns and trends over time and across states. We aim to find how these factors affect public sentiment and predict the likelihood of Trump becoming the next US president.
+
+In this section, we describe the process of transforming the raw Canadian grocery price data into a structured dataset for analysis. Since this study focuses on price changes in foods with seasonal fruit flavors, we selected bananas and strawberries as representatives. Bananas were chosen for their popularity in winter, and strawberries for spring. Compared to other seasonal fruits like watermelon and pomegranate, bananas and strawberries have a larger consumer base in Canada, making it easier to collect relevant data for model building.
+
+The original Canadian grocery price data was collected by Jacob Filipp through screen-scraping the website interfaces of eight vendors and compiled into the \textbf{Project Hammer} dataset. This dataset contains two tables: \textbf{Hammer 4 Raw} and \textbf{Hammer 4 Product}.
+\textbf{Hammer 4 Raw} includes the scrape time, product name, single-item price, unit price (e.g., price per 100g), past prices, additional information (e.g., availability or discounts), and a unique product ID.
+\textbf{Hammer 4 Product} provides detailed information, such as brand, vendor, sales unit, and product detail page links.
+Since the data comes from website scraping, it contains many gaps and ambiguities, making cleaning difficult. Details about data collection and cleaning are provided in Appendix A.
+
+To better analyze price changes for banana and strawberry-flavored foods, we added data from the \textbf{"About Rain Gauge Locations and Precipitation"} dataset from Open Data Toronto []. This dataset includes rain gauge locations across Toronto and recorded precipitation. Rainfall was included as a predictor since consumer demand for seasonal fruits often correlates with weather conditions, such as a preference for watermelon and strawberries during dry summers []. The dataset only uses rainfall data because the original grocery price data lacks sales location details.
+
+This structured dataset enables us to analyze trends in seasonal fruit-flavored food prices over time. The goal is to examine price trends for these foods during in-season and off-season sales and identify key influencing factors.
+
 
 ## Outcome Variables
 
-### Overview of Trump's Electoral Support
+### Overview of Change of Monthly Averaged Price for Banana and Strawberry Flavored Product
 
-[@fig-pct] illustrates the distribution of approval ratings for Trump. The majority of the approval ratings fall between 40% and 55%, forming a shape that resembles a normal distribution, with a peak around the 45% to 50% range. This suggests that, within the analyzed sample, most of the approval ratings cluster in this middle range, with relatively few instances of extremely high or low ratings.
+[@fig-one] illustrates the distribution of approval ratings for Trump. The majority of the approval ratings fall between 40% and 55%, forming a shape that resembles a normal distribution, with a peak around the 45% to 50% range. This suggests that, within the analyzed sample, most of the approval ratings cluster in this middle range, with relatively few instances of extremely high or low ratings.
 
 The lower frequency of approval ratings below 30% and above 60% indicates that these extremes are relatively uncommon in the dataset. Overall, the concentration of support in this central range suggests a fairly consistent level of public support for Trump.
 
@@ -127,14 +132,13 @@ ggplot(model_data, aes(x = monthly_avg_price)) +
 #| message: false
 
 # Create the plot for price distribution by month
-ggplot(model_data, aes(x = as.factor(month), y = monthly_avg_price, color = monthly_avg_price)) +
+ggplot(model_data, aes(x = as.factor(month), y = price_change, color = price_change)) +
   geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
   geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
   scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
   labs(
     x = "Month",
-    y = "Average Price",
-    title = "Average Price Distribution by Month"
+    y = "Average Price"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
@@ -253,7 +257,34 @@ ggplot(model_data, aes(x = category, y = monthly_avg_price, color = monthly_avg_
 
 Analysis of [@fig-two] shows no clear proportional or inverse relationship between poll scores and Trump’s support rate. This suggests that while a higher poll score may indicate greater reliability, it does not directly translate into changes in candidate support. This also supports the data's credibility, as Trump’s support rate remains consistent regardless of pollster ratings.
 
+```{r}
+#| label: fig-month
+#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
 
+# Create the plot for price distribution by month
+ggplot(model_data, aes(x = as.factor(month), y = monthly_avg_price, color = monthly_avg_price)) +
+  geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
+  geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
+  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  labs(
+    x = "Month",
+    y = "Average Price",
+    title = "Average Price Distribution by Month"
+  ) +
+  theme_minimal() +
+  facet_wrap(~flavor) +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12)
+  )
+
+
+```
 
 
 # Model {#sec-model}
@@ -447,11 +478,11 @@ Since we identified the limitations of linear models in handling interaction ter
 #| warning: false
 
 # Step 1: Predict price changes for the existing dataset
-model_data <- model_data %>%
+predict_data_lm <- model_data %>%
   mutate(Predicted_Price_Change = predict(model_linear_2, newdata = model_data))
 
 # Step 2: Filter the dataset for 'strawberry' and 'banana' flavor products
-flavor_data <- model_data %>%
+flavor_data <- predict_data_lm %>%
   filter(flavor %in% c("strawberry", "banana"))
 
 # Step 3: Calculate average predicted price change for each flavor across the dataset
@@ -471,9 +502,7 @@ flavor_summary %>%
   kable(
     col.names = c("Flavor", "Avg Change", "Median Change", "Min Change", "Max Change", "SD of Change", "Total Products"),
     digits = 3,
-    booktabs = TRUE,
-    caption = "Summary of Predicted Price Changes for Strawberry and Banana Products"
-  ) %>%
+    booktabs = TRUE) %>%
   kable_styling(latex_options = c("striped", "scale_down"))
 
 
@@ -483,39 +512,7 @@ flavor_summary %>%
 [@tbl-trump] shows the statistical information of the predicted support rate for Trump. The average support rate is 44.51%, with a median of 44.44%. The support rate ranges from a minimum of 28% to a maximum of 67.6%. The standard deviation of the support rate is 3.98, indicating some variability in the predictions. The data is derived from 2248 polls.
 
 ```{r}
-#| warning: false
-#| echo: false
-#| eval: true
-
-# Step 1: Add '12' as a new level to the factor levels of the 'month' column in model_data
-model_data_1 <- model_data %>%
-  mutate(month = factor(month, levels = c(levels(month), "12")))
-
-# Step 2: Create the December data
-december_data <- model_data_1 %>%
-  filter(month == "11") %>% # Use "11" as a factor level to match
-  mutate(
-    month = "12", # Set month to December as a string
-    monthly_avg_price = monthly_avg_price * (1 + ifelse(flavor == "banana", 0.009, 0.010)) # Apply predicted change
-  )
-
-# Step 3: Combine with the original dataset
-predicted_data <- bind_rows(model_data_1, december_data)
-
-
-# Step 4: Update price_change for December
-predicted_data <- predicted_data %>%
-  mutate(price_change = ifelse(
-    month == "12" & flavor == "banana", 0.009,
-    ifelse(month == "12" & flavor == "strawberry", 0.01, price_change)
-  ))
-
-
-
-```
-
-```{r}
-#| label: fig-result
+#| label: fig-lmone
 #| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
 #| echo: false
 #| eval: true
@@ -523,7 +520,7 @@ predicted_data <- predicted_data %>%
 #| message: false
 
 # Create the plot for price distribution by month
-ggplot(predicted_data, aes(x = as.factor(month), y = Predicted_Price_Change, color = Predicted_Price_Change)) +
+ggplot(predict_data_lm, aes(x = as.factor(month), y = Predicted_Price_Change, color = Predicted_Price_Change)) +
   geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
   geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
   scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
@@ -538,47 +535,14 @@ ggplot(predicted_data, aes(x = as.factor(month), y = Predicted_Price_Change, col
     axis.title = element_text(size = 14),
     axis.text = element_text(size = 12),
     strip.text = element_text(size = 12)
-  )
-
+  ) 
 
 ```
 
 [@tbl-modelresults] presents the model's average predicted supporting percentages for Donald Trump and Kamala Harris, along with their normalized percentages. According to the model's predictions, Donald Trump's average predicted supporting percentage is 44.51%, while Kamala Harris's is 43.86%. The normalized percentages adjust these predicted values to relative proportions, with Donald Trump at 50.37% and Kamala Harris at 49.63%. These results show that although Donald Trump's average predicted supporting percentage is slightly higher than Kamala Harris's, the support rates for both candidates are nearly equal, with Donald Trump holding a slight edge.
 
 ```{r}
-#| warning: false
-#| echo: false
-#| eval: true
-
-
-# Step 1: Predict price changes for all rows in the dataset
-model_data_2 <- model_data %>%
-  mutate(predicted_price_change = predict(model_rf, newdata = model_data))
-
-# Step 2: Filter the dataset for November data
-november_data <- model_data_2 %>%
-  filter(month == "11")  # Match factor level as string
-
-# Step 3: Simulate December data
-december_data <- november_data %>%
-  mutate(
-    month = "12",  # Set month to December as a string
-    monthly_avg_price = monthly_avg_price * (1 + predicted_price_change)  # Apply predicted change
-  )
-
-# Step 4: Combine original data with the new December rows
-predicted_data_2 <- bind_rows(model_data_2, december_data)
-
-# Ensure that the month column is a factor with appropriate levels
-predicted_data_2 <- predicted_data_2 %>%
-  mutate(month = factor(month, levels = c(levels(model_data_2$month), "12")))
-
-
-```
-
-
-```{r}
-#| label: fig-result_2
+#| label: fig-lmtwo
 #| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
 #| echo: false
 #| eval: true
@@ -586,7 +550,41 @@ predicted_data_2 <- predicted_data_2 %>%
 #| message: false
 
 # Create the plot for price distribution by month
-ggplot(predicted_data_2, aes(x = as.factor(month), y = predicted_price_change, color = predicted_price_change)) +
+ggplot(predict_data_lm, aes(x = category, y = Predicted_Price_Change, color = Predicted_Price_Change)) +
+  geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
+  geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
+  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  labs(
+    x = "Month",
+    y = "Average Price",
+    title = "Average Price Distribution by Month"
+  ) +
+  theme_minimal() +
+  facet_wrap(~flavor) +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  )
+
+```
+
+
+
+```{r}
+#| label: fig-rfone
+#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| echo: false
+#| eval: true
+#| warning: false
+#| message: false
+
+predict_data_rf <- model_data %>%
+  mutate(predicted_price_change = predict(model_rf, newdata = model_data))
+
+# Create the plot for price distribution by month
+ggplot(predict_data_rf, aes(x = as.factor(month), y = predicted_price_change, color = predicted_price_change)) +
   geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
   geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
   scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
@@ -609,12 +607,34 @@ ggplot(predicted_data_2, aes(x = as.factor(month), y = predicted_price_change, c
 [@fig-map] shows the predicted winner by state. Red indicates Trump’s predicted lead, blue indicates Harris’s lead, and gray marks states with insufficient data to predict the winner. This map visually represents regional support patterns for both candidates across the country. Trump shows strength in parts of the Midwest and South, while Harris performs better in parts of the Northeast and West. The table below [@tbl-model-state] presents the specific support rate figures.
 
 ```{r}
-#| label: tbl-model-state
-#| tbl-cap: "Table of Projected Winner by State"
+#| label: fig-rftwo
+#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
 #| echo: false
 #| eval: true
 #| warning: false
+#| message: false
 
+predict_data_rf <- model_data %>%
+  mutate(predicted_price_change = predict(model_rf, newdata = model_data))
+
+# Create the plot for price distribution by month
+ggplot(predict_data_rf, aes(x = category, y = predicted_price_change, color = predicted_price_change)) +
+  geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
+  geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
+  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  labs(
+    x = "Month",
+    y = "Average Price",
+    title = "Average Price Distribution by Month"
+  ) +
+  theme_minimal() +
+  facet_wrap(~flavor) +
+  theme(
+    axis.title = element_text(size = 14),
+    axis.text = element_text(size = 12),
+    strip.text = element_text(size = 12),
+    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+  )
 
 
 ```

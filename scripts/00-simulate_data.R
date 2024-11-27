@@ -17,12 +17,12 @@ set.seed(333)
 
 # Create the simulate_rain data frame
 simulated_rain <- data.frame(
-  month = 6:11,  # Months June (6) to November (11)
+  month = 7:11,  # Months June (6) to November (11)
   num_data = c(150, 160, 150, 140, 165, 155)  # Simulated number of data points for each month
 )
 
 # Simulate total rainfall (random values between 50 and 200 mm for each month)
-simulated_rain$total_rainfall <- sample(50:200, size = 6, replace = TRUE)
+simulated_rain$total_rainfall <- sample(50:200, size = 5, replace = TRUE)
 
 # Calculate average rainfall for each month
 simulated_rain$avg_rainfall <- simulated_rain$total_rainfall / simulated_rain$num_data

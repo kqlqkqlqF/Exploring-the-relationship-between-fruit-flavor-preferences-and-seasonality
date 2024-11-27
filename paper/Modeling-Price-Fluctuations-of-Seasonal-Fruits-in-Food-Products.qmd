@@ -39,6 +39,7 @@ library(janitor)
 library(knitr)
 library(kableExtra)
 library(caret)
+library(randomForest)
 library(rstanarm)
 
 model_data <- read_parquet(here::here("data/02-analysis_data/combined_model_data.parquet"))
@@ -78,6 +79,8 @@ The original Canadian grocery price data was collected by Jacob Filipp through s
 \textbf{Hammer 4 Product} provides detailed information, such as brand, vendor, sales unit, and product detail page links.
 Since the data comes from website scraping, it contains many gaps and ambiguities, making cleaning difficult. Details about data collection and cleaning are provided in Appendix A.
 
+We have considered sources like Statistics Canada, the Retail Council of Canada, and Open Data Portals as potential data providers. However, after reviewing their datasets, we found they do not meet the needs of our study. These datasets focus on broad food categories rather than specific flavored products like strawberry or banana. They are also ganeralized on time scale, lacking the specific needed to track monthly price changes or vendor-level details, which are critical for modeling seasonal price changes. Therefore, we determined these sources are unsuitable for our research.
+
 To better analyze price changes for banana and strawberry-flavored foods, we added data from the \textbf{"About Rain Gauge Locations and Precipitation"} dataset from Open Data Toronto []. This dataset includes rain gauge locations across Toronto and recorded precipitation. Rainfall was included as a predictor since consumer demand for seasonal fruits often correlates with weather conditions, such as a preference for watermelon and strawberries during dry summers []. The dataset only uses rainfall data because the original grocery price data lacks sales location details.
 
 This structured dataset enables us to analyze trends in seasonal fruit-flavored food prices over time. The goal is to examine price trends for these foods during in-season and off-season sales and identify key influencing factors.
@@ -85,15 +88,13 @@ This structured dataset enables us to analyze trends in seasonal fruit-flavored 
 
 ## Outcome Variables
 
-### Overview of Change of Monthly Averaged Price for Banana and Strawberry Flavored Product
+### Change of Monthly Averaged Price for Banana and Strawberry Flavored Product
 
-[@fig-one] illustrates the distribution of approval ratings for Trump. The majority of the approval ratings fall between 40% and 55%, forming a shape that resembles a normal distribution, with a peak around the 45% to 50% range. This suggests that, within the analyzed sample, most of the approval ratings cluster in this middle range, with relatively few instances of extremely high or low ratings.
-
-The lower frequency of approval ratings below 30% and above 60% indicates that these extremes are relatively uncommon in the dataset. Overall, the concentration of support in this central range suggests a fairly consistent level of public support for Trump.
+[@fig-one] illustrates the monthly average price distribution of banana and strawberry-flavored products. Most products are priced between 0 and 10 dollars, with very few exceeding 10 dollars. This indicates that the majority of sales fall within the lower price range, with prices above 20 dollars being rare. The average price distribution of strawberry and banana-flavored products shows no significant difference, though strawberry products have a slightly smaller proportion in the 0 to 10 dollar range compared to banana products.
 
 ```{r}
 #| label: fig-one
-#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| fig-cap: Distribution of Monthly Averaged Price for Banana and Strawberry Flavored Product
 #| echo: false
 #| eval: true
 #| warning: false
@@ -125,7 +126,7 @@ ggplot(model_data, aes(x = monthly_avg_price)) +
 
 ```{r}
 #| label: fig-two
-#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| fig-cap: Distribution of Monthly Averaged Price Change for Banana and Strawberry Flavored Product from July 2024 to Novermber 2024
 #| echo: false
 #| eval: true
 #| warning: false
@@ -151,25 +152,31 @@ ggplot(model_data, aes(x = as.factor(month), y = price_change, color = price_cha
 
 ```
 
+[@fig-two] illustrates the price change of monthly average distribution of banana and strawberry-flavored products. Overall, strawberry-flavored products show greater price fluctuation compared to banana-flavored ones. Banana product prices typically vary within a range of ±1.5 dollars, while strawberry prices fluctuate within ±2.5 dollars. However, neither flavor shows a clear trend of overall price increases or decreases over the months.
+
+
+This contradicts our hypothesis: we anticipated that banana-flavored product prices might increase between July and November, as bananas are a popular fall and winter flavor, while strawberry-flavored product prices might decline during this period, given their popularity as a summer flavor.
+
+
 ## Predictor Variables
 
 ### Summary of Predictor Variables
 
-- **Vendor:** The U.S. state where the poll was conducted, if applicable.
+- **Vendor:** Canada's eight major suppliers include Voila, T&T, Loblaws, No Frills, Metro, Galleria, Walmart, and Save-On-Foods.
 
-- **Average Rainfall Per Month:** A numeric rating from 2.0 to 3.0 indicates each pollster’s reliability.
+- **Average Rainfall Per Month:** Using the precipitation data from the "About Rain Gauge Locations and Precipitation" dataset, we calculated the monthly average rainfall for Toronto from July to November 2024, with measurements in millimeters.
 
-- **Food Category:** The total number of respondents participating in the poll.
+- **Food Category:** We categorized banana and strawberry-flavored foods into five groups: beverage, yogurt, flavored tea, solid snack, and fruit. The "beverage" category includes all drinks except tea and yogurt-based beverages. The "flavored tea" category encompasses both tea drinks and flavored tea bags, while "fruit" refers to various types of strawberry or banana fruit.
 
-- **Month:** A quantitative measure of the pollster’s reliability, where lower values suggest higher predictive accuracy.
+- **Month:** Month records the corresponding month information when the price data for each product was collected. In this dataset, it starts from July to November.
 
 ### Vendor
 
-According to [@fig-state], we observe an interesting trend: in traditionally Republican states, Trump's support is not markedly high and is even relatively low in places like Oklahoma and Tennessee. Conversely, in states typically aligned with the Democratic Party, as well as in swing states, Trump’s support is unexpectedly higher. The "national" category in the chart represents data spanning the entire country without focusing on specific states, showing Trump’s national support nearing but not reaching 50%. This suggests Trump’s appeal may be crossing traditional partisan lines, gaining unexpected traction outside Republican strongholds. Overall, his estimated national support stands at around 45%.
+Based on [@fig-vendor], we observed that the overall number of strawberry-flavored products is significantly higher than that of banana-flavored products. This is because the original dataset shows that the quantity of strawberry-flavored products is roughly 3-4 times greater than that of banana-flavored products, indicating that strawberry-flavored items have a broader audience. Save-On-Foods has the lowest share in both flavor categories, suggesting that they either offer fewer food types overall or focus on selling other product categories rather than fruit-flavored foods.
 
 ```{r}
 #| label: fig-vendor
-#| fig-cap: Overview of the Percentage Support of Trump Across Different States
+#| fig-cap: Distribution of the Counts of Banana and Strawberry Flavored Food Offered in Each Vendor
 #| echo: false
 #| warning: false
 #| message: false
@@ -179,10 +186,10 @@ ggplot(model_data, aes(x = vendor)) +
   geom_bar(fill = "blue", color = "black", alpha = 0.7) + 
   labs(
     x = "Vendor",
-    y = "Count",
-    title = "Vendor Distribution"
+    y = "Count"
   ) +
   theme_minimal() +
+  facet_wrap(~flavor) +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1), # Rotate x-axis labels for better readability
     axis.title = element_text(size = 14),
@@ -194,11 +201,11 @@ ggplot(model_data, aes(x = vendor)) +
 
 ### Average Rainfall Per Month
 
-In [@fig-rain], we analyzed the relationship between numeric grade and Trump’s support rate. Each point in the chart represents a poll, with its numeric grade on the x-axis and Trump’s support rate on the y-axis. The nearly flat trend line suggests that numeric grade has no clear relationship with Trump’s support rate. However, this is a basic analysis and does not rule out the possibility that numeric grade could impact Trump’s support rate under different variable conditions.
+[@fig-rain] shows the average monthly rainfall in Toronto, measured in millimeters. It is evident that October had the lowest rainfall, while July had the highest. From July to October, there is a continuous downward trend, with a rebound in November. We chose rainfall as a predictor because it is highly correlated with time and seasonal changes, and we believe it will be helpful in our model.
 
 ```{r}
 #| label: fig-rain
-#| fig-cap: Relationship between Numeric Grade and Support Percentage of Trump
+#| fig-cap: Average Rainfall in Toronto from July 2024 to November 2024
 #| echo: false
 #| warning: false
 #| message: false
@@ -222,11 +229,11 @@ ggplot(rain_data, aes(x = as.factor(month), y = avg_rainfall)) +
 
 ### Food Category
 
-In [@fig-sample-size], we examined the relationship between sample size and Trump’s support rate. The results show a slight downward trend in Trump’s support as the sample size increases. However, since most data points are concentrated in the 0–4000 range, with fewer data points above 4000, this may not accurately reflect the true relationship between sample size and support rate.
+In [@fig-category], we can see that solid snacks have the highest overall prices, reaching up to 80 dollars per unit, while flavored tea has the lowest overall prices. Additionally, the price distribution for solid snacks, fruit, and beverages is relatively dispersed, whereas yogurt and flavored tea show more tightly clustered price distributions. We believe this is because flavored tea and yogurt are more specialized categories compared to the others.
 
 ```{r}
 #| label: fig-category
-#| fig-cap: Relationship between Sample Size and Support Percentage for Trump
+#| fig-cap: Distribution of Monthly Averaged Price for Banana and Strawberry Flavored Product within Category
 #| echo: false
 #| warning: false
 #| message: false
@@ -239,8 +246,7 @@ ggplot(model_data, aes(x = category, y = monthly_avg_price, color = monthly_avg_
   scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
   labs(
     x = "Category",
-    y = "Average Price",
-    title = "Average Price Distribution by Category"
+    y = "Average Price"
   ) +
   theme_minimal() +
   theme(
@@ -250,16 +256,15 @@ ggplot(model_data, aes(x = category, y = monthly_avg_price, color = monthly_avg_
   )
 
 
-
 ```
 
 ### Month
 
-Analysis of [@fig-two] shows no clear proportional or inverse relationship between poll scores and Trump’s support rate. This suggests that while a higher poll score may indicate greater reliability, it does not directly translate into changes in candidate support. This also supports the data's credibility, as Trump’s support rate remains consistent regardless of pollster ratings.
+[@fig-month] shows the distribution of the Monthly Averaged Price for Banana and Strawberry Flavored Products over time. It is clear that strawberry-flavored products are priced higher than banana-flavored products in all months. However, neither flavor shows a noticeable increasing or decreasing trend in price distribution across the months.
 
 ```{r}
 #| label: fig-month
-#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| fig-cap: Distribution of Monthly Averaged Price for Banana and Strawberry Flavored Product from July 2024 to Novermber 2024
 #| echo: false
 #| eval: true
 #| warning: false
@@ -282,7 +287,6 @@ ggplot(model_data, aes(x = as.factor(month), y = monthly_avg_price, color = mont
     axis.text = element_text(size = 12),
     strip.text = element_text(size = 12)
   )
-
 
 ```
 
@@ -316,15 +320,16 @@ model_linear_5 <-
 
 ```
 
-The goal of this section is to address the inherent biases and variations present in polling data to build a robust predictive model. The key challenge lies in achieving an optimal balance between model complexity and fit, ensuring that the model accurately captures the dynamics of polling data while avoiding overfitting. To this end, we evaluated multiple model specifications to identify the one that best meets our forecasting objectives.
 
-We chose to use "numeric grade" and "poll score" as variables instead of "pollster" because "pollster" tends to be highly subjective. People often select polling organizations that favor their preferred candidate, which can introduce bias. In contrast, "numeric grade" and "poll score" offer a more objective, quantified reflection of poll quality and bias, helping to improve accuracy and reliability in the regression analysis. Additionally, we focused on key factors such as sample size, state, and recency, gradually adding complexity to the model.
+The goal of this section is to build a robust predictive model for price changes in banana and strawberry flavored products. The key challenge lies in ensuring the model effectively captures the dynamics of price changes despite limited sample size and temporal coverage. To address this, we evaluated multiple model specifications to identify the one that best aligns with our predictive objectives.
 
-By systematically comparing model specifications that incorporate different variables, we aim to identify a model that strikes the right balance between predictive accuracy and generalizability, ultimately providing the reliable forecast results.
+We chose to model the monthly average unit price changes for banana and strawberry flavored products rather than making more precise predictions, such as price per 100g. This decision was driven by the original dataset's limitations, which include a variety of measurement units (e.g., per 100g, per 100ml, per 1L, per 1kg, per lb) and the fact that many products only provide prices for each product without corresponding measurement details. As a result, we focused on unit prices, acknowledging that this might reduce the model's performance.
+
+We incorporated Vendor, Food Category, Average Rainfall, and Month as predictors. Recognizing potential interactions among these variables. For example, rainfall and month are typically strongly correlated, and food category might interact with both month and vendor. We developed a series of linear models for the prediction. By systematically comparing models with different interaction terms, we aimed to identify the best-performing model to deliver reliable predictions.
 
 ## Model Set-up
 
-We aim to model the percentage of support for a candidate based on factors including Vendor, Category, state, sample size, poll score, and numeric grade. This model includes interaction terms to capture how combinations of these factors jointly impact the support percentage, providing a better understanding of the influences on candidate support.
+Our goal is to model the price changes of strawberry and banana flavored products based on Vendor, Food Category, Average Rainfall, and Month. The model incorporates interaction terms to capture how combinations of these factors jointly influence price changes, providing a clearer understanding of which factors most significantly affect the pricing of seasonal fruit flavored products.
 
 \
 \begin{align*}
@@ -350,11 +355,11 @@ Where
 
 ### Model Interpretation
 
-This regression model is designed to predict voter support rates by incorporating factors and interaction terms. The model includes an intercept term, representing the baseline support rate when all other predictors are zero. Among the main effects, it includes terms for candidate identity, poll recency, and state, capturing the influence of these individual factors on support rate. For instance, candidate identity indicates how different candidates affect voter support, poll recency reflects how recent the poll is, and the state variable accounts for regional variations in support.
+This regression model aims to predict price changes for strawberry and banana flavored products by incorporating both main effects and interaction terms. The intercept represents the baseline price change when all predictors are zero. Main effects include vendor, average rainfall, food category, and month, capturing how each factor independently influences price. For example, as the months progress into winter, strawberry flavored products, often associated with summer, may see a price drop.
 
-To capture more complex relationships, the model incorporates two-way interaction terms. These include interactions between candidate and recency, candidate and state, and recency and state. Each of these terms helps identify how one factor might alter the effect of another. For example, the interaction between candidate and recency shows how the influence of recency might differ for each candidate, while the interaction between candidate and state captures how support for different candidates varies by region. Additionally, the model includes a three-way interaction term among candidate identity, poll recency, and state, allowing it to account for combined effects that vary across candidates, states, and the timing of the poll.
+To better understand more complex dynamics, the model includes two-way interaction terms, such as vendor and category, category and month, and month and average rainfall. These interactions reveal how factors influence one another. For instance, vendors may focus on specific product types, such as selling more beverages than fruits. The interaction between category and month reflects seasonal preferences, like reduced demand for beverages during Canada’s cold winters. The interaction between rainfall and month highlights their direct relationship, with June being Canada’s wettest month and November its driest.
 
-The model also includes several other predictors, including sample size, poll score, and numeric grade. These predictors help account for variations in the data, with sample size ensuring that different poll sizes are properly weighted, poll score reflecting potential bias within each poll, and numeric grade indicating the reliability of each poll. Finally, the model includes an error term to capture any unexplained variation in support rate, adding robustness to its predictions. Overall, this structure allows the model to incorporate both straightforward and complex relationships, providing a reliable prediction of voter support.
+Finally, the model includes an error term to account for unexplained variability, enhancing its predictive reliability. By combining both individual and interdependent relationships, the model offers a nuanced approach to forecasting price changes for these products.
 
 ## Model Justification
 
@@ -405,13 +410,13 @@ model_summary %>%
 
 
 
-[@tbl-model-compare] summarizes the performance metrics for five models, each with progressively more variables and interactions.
+[@tbl-linear] summarizes the performance metrics for five models, each with different interactions, while the first model contains no interaction.
 
-Model 1, which includes only basic predictors (Sample Size, Poll Score, Numeric Grade, and State), shows limited explanatory power, with an R² of 0.0526 and a high RMSE of 5.39274, indicating poor predictive accuracy. Adding Category in Model 2 slightly improves performance, increasing R² to 0.09461, but the RMSE remains high at 5.27184, suggesting only minor gains in prediction accuracy. Model 3 further incorporates Vendor, leading to a modest increase in R² to 0.09644, yet with minimal impact on RMSE (5.26649), indicating limited additional explanatory value from this variable alone.
+Model 1, which includes basic predictors (Vendor, Category, Month, and Average Rainfall), exhibits poor predictive performance with an R² of 0.00383 and an RMSE of 0.50983, indicating limited explanatory power. Model 2 improves slightly by incorporating an interaction between Category and Month, increasing R² to 0.00890 and lowering RMSE to 0.50853, suggesting minor gains in prediction accuracy. Model 3, which includes an interaction between Month and Average Rainfall, yields no improvement over Model 1, with identical R² (0.00383) and RMSE (0.50983), highlighting the limited value of this interaction.
 
-The inclusion of an interaction between Vendor and State in Model 4 significantly enhances the model’s fit, raising R² to 0.46417 and reducing RMSE to 4.05562. This improvement suggests that state-specific variations in candidate popularity are important for predictive accuracy. Finally, Model 5 builds upon Model 4 by adding a three-way interaction among Vendor, State, and Category. This final model achieves the highest R² (0.48581) and the lowest RMSE (3.97288), indicating the best fit and prediction accuracy across all models.
+Model 4 adds an interaction between Category and Average Rainfall, resulting in a marginally higher R² of 0.00431 but with negligible impact on RMSE (0.50971). Finally, Model 5 introduces an interaction between Vendor and Category, leading to an R² of 0.00821 and an RMSE of 0.50871, showing slight improvement but still limited overall explanatory power.
 
-In conclusion, Model 5 is chosen as it captures complex interactions and provides the best balance of explanatory power and prediction accuracy, as evidenced by its highest R² and lowest RMSE.
+In conclusion, none of the models provide strong predictive accuracy, but Model 2 achieves the best balance among them with the highest R² (0.00890) and lowest RMSE (0.50853). However, the overall low R² values indicate that these predictors and interactions capture only a small portion of the variation in price changes.
 
 ## Optimization
 
@@ -463,15 +468,28 @@ importance_table %>%
 
 ```
 
-Since we identified the limitations of linear models in handling interaction terms during our research, if we wish to investigate this issue further, we propose an optimized model—Random Forest. The reason we chose Random Forest over a linear model is because our data includes interaction terms. Random Forest excels at handling interactions and nonlinear relationships, as it can automatically identify and leverage these complex interactions through its decision tree structure, without requiring manual adjustments to the model structure. In contrast, linear models have limited capabilities for handling interactions, typically requiring manual specification and hard to capture nonlinear effects. Given that our data contains multiple interactions, Random Forest can more flexibly adapt to the data structure, improving prediction accuracy and model stability.
+Due to the limitations of linear models in handling interaction terms, we propose an optimized model—Random Forest. The consistently poor performance of linear models suggests that a linear relationship may not adequately explain the price changes of banana and strawberry flavored products in relation to the predictors. We chose Random Forest because our data includes interaction terms, and linear analysis is not suitable for such data. Random Forest excels at handling interactions and nonlinear relationships, as it can automatically identify and leverage these complex interactions through its decision tree structure without the need for manual adjustments. In contrast, linear models have limited capacity to handle interactions, requiring manual specification, and are less effective at capturing nonlinear effects.
 
-[@tbl-rfsum] demonstrates the prediction results obtained through Random Forest. Compared to a linear model, this result may be more accurate; however, in the overall study, our main focus is the linear model.
+[@tbl-rfsum] presents the prediction results obtained using Random Forest.
 
+Compared to Linear Model 2, the best performing linear model, the Random Forest model demonstrates significantly better predictive accuracy. Model 2, which incorporates basic predictors (Vendor, Category, Month, and Average Rainfall) along with an interaction between Category and Month, achieves an R² of 0.00890 and an RMSE of 0.50853, suggesting minimal improvement in prediction accuracy. In contrast, the Random Forest model, with 500 trees and an Out-of-Bag MSE of 0.25972, delivers a substantial reduction in error and appears to capture more of the underlying complexity in the data.
+
+While the linear models struggle to account for interactions and non-linear relationships, the Random Forest model effectively handles these through its decision tree structure. This allows it to automatically detect and utilize complex interactions between variables, leading to a much better fit. In conclusion, the Random Forest model outperforms Model 2 by a significant margin, providing stronger predictive power and better handling of the data's complexity.
+
+[@tbl-rfsum] also presents the variable importance metrics for the Random Forest model, including both the %IncMSE and IncNodePurity values, which help identify how each predictor contributes to the model’s performance.
+
+The Category variable stands out as the most important predictor, with a %IncMSE of 19.34 and an IncNodePurity of 5.63. This suggests that changes in food category have the greatest impact on the model’s predictive accuracy and contribute strongly to reducing the impurity of the decision nodes in the trees. Vendor follows closely, with a %IncMSE of 13.52 and an IncNodePurity of 7.73, indicating that the vendor also plays a significant role in determining price changes, though slightly less than category.
+
+Month and Average Rainfall also show notable importance, with %IncMSE values of 14.32 and 11.44, respectively. These variables contribute moderately to the model's predictive accuracy, with month playing a key role in capturing seasonal effects and rainfall influencing potential price fluctuations related to environmental factors.
+
+Finally, Flavor exhibits the lowest importance, with a negative %IncMSE of -1.11, which suggests that including flavor as a predictor may actually decrease the model’s accuracy, although its IncNodePurity value of 1.34 shows it still holds some relevance in the decision-making process.
+
+In conclusion, Category and Vendor are the most influential variables in the Random Forest model, while Flavor has the least impact, possibly detracting from the overall performance. These insights help refine the model and highlight the factors that most strongly influence price variations.
 
 # Result {#sec-results}
 
 ```{r}
-#| label: tbl-trump
+#| label: tbl-resultone
 #| tbl-cap: "Summary Statistics of Predicted Support for Donald Trump"
 #| message: false
 #| echo: false
@@ -500,7 +518,7 @@ flavor_summary <- flavor_data %>%
 # Step 4: Present the summary using kable
 flavor_summary %>%
   kable(
-    col.names = c("Flavor", "Avg Change", "Median Change", "Min Change", "Max Change", "SD of Change", "Total Products"),
+    col.names = c("Flavor", "Avg Change", "Median Change", "Min Change", "Max Change", "SD of Change", "Sample Size"),
     digits = 3,
     booktabs = TRUE) %>%
   kable_styling(latex_options = c("striped", "scale_down"))
@@ -509,7 +527,9 @@ flavor_summary %>%
 
 ```
 
-[@tbl-trump] shows the statistical information of the predicted support rate for Trump. The average support rate is 44.51%, with a median of 44.44%. The support rate ranges from a minimum of 28% to a maximum of 67.6%. The standard deviation of the support rate is 3.98, indicating some variability in the predictions. The data is derived from 2248 polls.
+[@tbl-resultone] summarizes the price change statistics for banana and strawberry flavored products.
+
+Banana flavored products have an average price change of 0.009, with a median change of 0.018 across 1,376 products. Strawberry-flavored products show a slightly higher average change of 0.010, with a median of 0.021. For both of the flavors, their price changes  range from -0.109 to 0.112. However, for banana flavored product, their sample size is roughly only a quarter of strawberry product sample size.Overall, strawberry-flavored products exhibit slightly higher average price changes and more variation compared to banana-flavored products.
 
 ```{r}
 #| label: fig-lmone

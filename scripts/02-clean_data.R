@@ -231,7 +231,7 @@ rain_data_filtered$year <- year(rain_data_filtered$date)
 
 # Filter for months between June and November 2024
 rain_data_filtered <- rain_data_filtered %>%
-  filter(year == 2024 & month >= 6 & month <= 11)
+  filter(year == 2024 & month >= 7 & month <= 11)
 
 # Calculate the average rainfall for each month
 average_rainfall <- rain_data_filtered %>%

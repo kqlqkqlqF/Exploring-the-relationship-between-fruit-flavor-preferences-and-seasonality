@@ -422,7 +422,6 @@ In conclusion, none of the models provide strong predictive accuracy, but Model 
 
 ```{r}
 #| label: tbl-rfsum
-#| tbl-cap: Model Summary with Included Variables and Interactions
 #| echo: false
 #| warning: false
 #| message: false
@@ -462,7 +461,7 @@ importance_table %>%
   ) %>%
   kable(digits = 2, escape = FALSE) %>%
   kable_styling(full_width = FALSE) %>%
-  add_header_above(c(" " = 1, "Variable Importance in Random Forest" = 2)) %>%
+  add_header_above(c(" " = 1, "Variable Importance in Random Forest Model" = 2)) %>%
   column_spec(1, bold = TRUE, width = "12em")
 
 
@@ -490,7 +489,7 @@ In conclusion, Category and Vendor are the most influential variables in the Ran
 
 ```{r}
 #| label: tbl-resultone
-#| tbl-cap: "Summary Statistics of Predicted Support for Donald Trump"
+#| tbl-cap: "Summary Statistics of Predicted Change in Average Price of Strawberry and Banana Flavored Product by Linear Model Two"
 #| message: false
 #| echo: false
 #| warning: false
@@ -533,7 +532,7 @@ Banana flavored products have an average price change of 0.009, with a median ch
 
 ```{r}
 #| label: fig-lmone
-#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| fig-cap: Distribution of Linear Model Two Predicted Monthly Price Changes for Banana and Strawberry Products by Month  
 #| echo: false
 #| eval: true
 #| warning: false
@@ -546,9 +545,7 @@ ggplot(predict_data_lm, aes(x = as.factor(month), y = Predicted_Price_Change, co
   scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
   labs(
     x = "Month",
-    y = "Average Price",
-    title = "Average Price Distribution by Month"
-  ) +
+    y = "Average Price") +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
@@ -559,11 +556,11 @@ ggplot(predict_data_lm, aes(x = as.factor(month), y = Predicted_Price_Change, co
 
 ```
 
-[@tbl-modelresults] presents the model's average predicted supporting percentages for Donald Trump and Kamala Harris, along with their normalized percentages. According to the model's predictions, Donald Trump's average predicted supporting percentage is 44.51%, while Kamala Harris's is 43.86%. The normalized percentages adjust these predicted values to relative proportions, with Donald Trump at 50.37% and Kamala Harris at 49.63%. These results show that although Donald Trump's average predicted supporting percentage is slightly higher than Kamala Harris's, the support rates for both candidates are nearly equal, with Donald Trump holding a slight edge.
+[fig-lmone] illustrates the predicted monthly price changes for strawberry and banana-flavored products. The price trends show no significant differences between the two flavors, with nearly stable prices in July, a slight dip in August, and minor increases in October and November. October saw the highest increase, while August experienced the largest decrease. However, the average price changes remained within ±0.1 units, indicating limited fluctuation.
 
 ```{r}
 #| label: fig-lmtwo
-#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| fig-cap: Distribution of Linear Model Two Predicted Monthly Price Changes for Banana and Strawberry Products by Category
 #| echo: false
 #| eval: true
 #| warning: false
@@ -575,9 +572,8 @@ ggplot(predict_data_lm, aes(x = category, y = Predicted_Price_Change, color = Pr
   geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
   scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
   labs(
-    x = "Month",
-    y = "Average Price",
-    title = "Average Price Distribution by Month"
+    x = "Food Category",
+    y = "Average Price"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
@@ -589,12 +585,11 @@ ggplot(predict_data_lm, aes(x = category, y = Predicted_Price_Change, color = Pr
   )
 
 ```
-
-
+[fig-lmtwo], like [fig-lmone], uses predictions from Linear Model 2. However, while [fig-lmone] shows predicted price changes across months, [fig-lmtwo] presents their distribution across food categories. Similar to the monthly distribution, there is no significant difference between strawberry and banana-flavored products across categories, except for flavored tea. Banana-flavored tea shows a downward price trend with fewer products compared to strawberry-flavored tea, which exhibits rising prices. For beverage, fruit, and solid snack categories, both flavors demonstrate increasing price trends, while yogurt prices remain largely stable.
 
 ```{r}
 #| label: fig-rfone
-#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| fig-cap: Distribution of Random Forest Model Predicted Monthly Price Changes for Banana and Strawberry Products by Month
 #| echo: false
 #| eval: true
 #| warning: false
@@ -610,9 +605,7 @@ ggplot(predict_data_rf, aes(x = as.factor(month), y = predicted_price_change, co
   scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
   labs(
     x = "Month",
-    y = "Average Price",
-    title = "Average Price Distribution by Month"
-  ) +
+    y = "Average Price") +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
@@ -624,7 +617,9 @@ ggplot(predict_data_rf, aes(x = as.factor(month), y = predicted_price_change, co
 
 ```
 
-[@fig-map] shows the predicted winner by state. Red indicates Trump’s predicted lead, blue indicates Harris’s lead, and gray marks states with insufficient data to predict the winner. This map visually represents regional support patterns for both candidates across the country. Trump shows strength in parts of the Midwest and South, while Harris performs better in parts of the Northeast and West. The table below [@tbl-model-state] presents the specific support rate figures.
+To address the limitations of the linear model, we also generated predictions using the random forest model, as shown in [@fig-rfone] and [@fig-rftwo].
+
+[@fig-rfone] illustrates the predicted price changes for banana and strawberry-flavored products across months. Whi le the differences are not pronounced, there are notable variations in their distributions. In July, August, and September, prices for both flavors decline, with banana-flavored products experiencing a steeper drop. By October, prices for both flavors rise, with a sharper increase for banana-flavored products. In November, price increases continue but at a slower pace, with some products, particularly banana-flavored ones, showing significant price reductions. Overall, the price changes largely fall within a range of ±0.1 units.
 
 ```{r}
 #| label: fig-rftwo
@@ -659,7 +654,7 @@ ggplot(predict_data_rf, aes(x = category, y = predicted_price_change, color = pr
 
 ```
 
-[@tbl-model-state] provides detailed data for each state’s predicted support rate and expected winner. Together with [@fig-map], it offers a better understanding of Trump and Harris’s support levels in each state.
+[@fig-rftwo] presents the predicted price changes for banana and strawberry-flavored products across food categories. Notable differences emerge in their distribution across categories. Prices for beverages, fruit, and solid snacks show an overall increase, while yogurt remains relatively stable. For flavored tea, banana-flavored products exhibit minimal price changes, whereas strawberry-flavored products see a noticeable price increase. Interestingly, some banana-flavored products show significantly larger price increases compared to their strawberry counterparts, resulting in a more dispersed price distribution for banana-flavored items.
 
 # Discussion {#sec-discussion}
 

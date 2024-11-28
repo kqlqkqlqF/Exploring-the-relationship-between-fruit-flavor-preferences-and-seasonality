@@ -11,21 +11,11 @@
 
 #### Workspace setup ####
 library(tidyverse)
-library(randomForest)
 library(arrow)
 
 
 #### Read data ####
 model_data <- read_parquet("data/02-analysis_data/combined_model_data.parquet")
-
-
-# use vendor, category, month, and rainfall (avg_rainfall) as predictors
-
-rf_model <- randomForest(price_change ~ vendor + category + month + avg_rainfall + flavor, 
-                         data = model_data, 
-                         na.action = na.roughfix,   # Automatically handles NAs by imputing
-                         importance = TRUE)
-
 
 # 1. Train a linear regression model
 lm_model_1 <- lm(price_change ~ vendor + category  + month + avg_rainfall, data = model_data)

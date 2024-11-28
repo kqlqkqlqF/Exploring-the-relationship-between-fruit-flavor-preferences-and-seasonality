@@ -56,7 +56,7 @@ Our main focus is the probability of Donald Trump winning the 2024 U.S. presiden
 
 Our model predicts that Donald Trump will win by a narrow margin, with an average support of 44.51% compared to Kamala Harris's 43.86%. Trump leads in six out of seven key swing states, suggesting that this localized support could enhance his overall chances despite only a slight national lead. Among the predictor variables analyzed, state and recency are the most significant indicators of support trends, reflecting the "winner-takes-all" nature of the U.S. electoral system and the increasing accuracy of polling data as Election Day approaches.
 
-The remainder of this paper is structured as follows: [@sec-data] provides an overview of the dataset, details of the parameters, outcome and predictor variables, and the packages used during processing. [@sec-model] explains the modeling approach, and best model selection, justifying the choice of predictors and outlining the methods used to forecast support for Trump and Harris. [@sec-results] presents the findings, including a summary of the predicted support rate for Trump, a comparison of the predicted support rates for Trump and Harris, and a breakdown of their support rates in each state. In [@sec-discussion], we discuss the implications of these results, the limitations of our analysis, and potential avenues for future research. Additional methodological details and diagnostics are included in the appendix.
+The remainder of this paper is structured as follows: [@sec-data] provides an overview of the dataset, details of the parameters, outcome and predictor variables, and the packages used during processing. [@sec-model] explains the modeling approach, and best model selection, justifying the choice of predictors and outlining the methods used to forecast the price change of banana and strawberry flavored products. [@sec-results] presents the findings, including a summary of the predicted price change for each flavored products, and figures demonstrate the price change distribuion across month and food categories. In [@sec-discussion], we discuss the implications of these results, the limitations of our analysis, and what can we do next to improve our model. Additional methodological details and diagnostics are included in the appendix.
 
 
 
@@ -299,9 +299,6 @@ ggplot(model_data, aes(x = as.factor(month), y = monthly_avg_price, color = mont
 #| warning: false
 #| message: false
 
-model_rf <-
-  readRDS(file = here::here("models/model_rf.rds"))
-
 model_linear_1 <-
   readRDS(file = here::here("models/model_linear_1.rds"))
 
@@ -401,7 +398,7 @@ model_summary <- tibble(
 
 # Display the table using kable
 model_summary %>%
-  kable(digits = 5, escape = FALSE) %>%
+  kable(digits = 4, escape = FALSE) %>%
   kable_styling(full_width = FALSE) %>%
   column_spec(2, width = "8em")
 
@@ -412,13 +409,47 @@ model_summary %>%
 
 [@tbl-linear] summarizes the performance metrics for five models, each with different interactions, while the first model contains no interaction.
 
-Model 1, which includes basic predictors (Vendor, Category, Month, and Average Rainfall), exhibits poor predictive performance with an R² of 0.00383 and an RMSE of 0.50983, indicating limited explanatory power. Model 2 improves slightly by incorporating an interaction between Category and Month, increasing R² to 0.00890 and lowering RMSE to 0.50853, suggesting minor gains in prediction accuracy. Model 3, which includes an interaction between Month and Average Rainfall, yields no improvement over Model 1, with identical R² (0.00383) and RMSE (0.50983), highlighting the limited value of this interaction.
+Model 1, which includes basic predictors (Vendor, Category, Month, and Average Rainfall), exhibits poor predictive performance with an R² of 0.0038 and an RMSE of 0.50983, indicating limited explanatory power. Model 2 improves slightly by incorporating an interaction between Category and Month, increasing R² to 0.00890 and lowering RMSE to 0.5085, suggesting minor gains in prediction accuracy. Model 3, which includes an interaction between Month and Average Rainfall, yields no improvement over Model 1, with identical R² (0.00383) and RMSE (0.5098), highlighting the limited value of this interaction.
 
-Model 4 adds an interaction between Category and Average Rainfall, resulting in a marginally higher R² of 0.00431 but with negligible impact on RMSE (0.50971). Finally, Model 5 introduces an interaction between Vendor and Category, leading to an R² of 0.00821 and an RMSE of 0.50871, showing slight improvement but still limited overall explanatory power.
+Model 4 adds an interaction between Category and Average Rainfall, resulting in a marginally higher R² of 0.0043 but with negligible impact on RMSE (0.5097). Finally, Model 5 introduces an interaction between Vendor and Category, leading to an R² of 0.00821 and an RMSE of 0.5087, showing slight improvement but still limited overall explanatory power.
 
-In conclusion, none of the models provide strong predictive accuracy, but Model 2 achieves the best balance among them with the highest R² (0.00890) and lowest RMSE (0.50853). However, the overall low R² values indicate that these predictors and interactions capture only a small portion of the variation in price changes.
+In conclusion, none of the models provide strong predictive accuracy, but Model 2 achieves the best balance among them with the highest R² (0.0089) and lowest RMSE (0.50853). However, the overall low R² values indicate that these predictors and interactions capture only a small portion of the variation in price changes.
 
 ## Optimization
+
+```{r}
+
+tree_data <- model_data
+
+tree_data$month_category <- with(tree_data, interaction(month, category))
+
+interaction_terms <- model.matrix(~month * category - 1, data=tree_data)
+tree_data <- cbind(tree_data, interaction_terms)
+main_effects <- tree_data[c("vendor", "avg_rainfall")]
+X <- cbind(main_effects, interaction_terms)
+y <- tree_data$price_change
+
+set.seed(333)
+trainIndex <- createDataPartition(y, p = 0.8, list = FALSE)
+train_data <- X[trainIndex,]
+test_data <- X[-trainIndex,]
+train_y <- y[trainIndex]
+test_y <- y[-trainIndex]
+
+tuneGrid <- expand.grid(mtry = c(2, 5, 10))
+
+set.seed(333)
+rf_model <- train(
+  x = train_data,
+  y = train_y,
+  method = "rf",
+  tuneGrid = tuneGrid,
+  trControl = trainControl(method = "cv", number = 10),
+  metric = "RMSE",
+  ntree = 200
+)
+
+```
 
 ```{r}
 #| label: tbl-rfsum
@@ -426,42 +457,81 @@ In conclusion, none of the models provide strong predictive accuracy, but Model 
 #| warning: false
 #| message: false
 
-# Extract OOB error
-oob_error <- model_rf$mse[model_rf$ntree]
-
-# Number of trees
-num_trees <- model_rf$ntree
-
-# Extract variable importance
-var_importance <- importance(model_rf)
-importance_table <- as_tibble(var_importance, rownames = "Variable") %>%
-  rename(
-    `%IncMSE` = `%IncMSE`,
-    `IncNodePurity` = `IncNodePurity`
-  )
-
-# Construct a summary table for model metrics
+# Extract RMSE and other metrics from the model
 model_metrics <- tibble(
-  Metric = c("Number of Trees", "Out-of-Bag Error (MSE)"),
-  Value = c(num_trees, round(oob_error, 5))
+  Metric = c("RMSE", "Number of Trees", "Best mtry"),
+  Value = c(
+    min(rf_model$results$RMSE),  # Minimum RMSE from cross-validation
+    rf_model$finalModel$ntree,  # Number of trees used
+    rf_model$bestTune$mtry      # Best mtry value selected
+  )
 )
 
-# Display model metrics table
+# Display the model metrics table
 model_metrics %>%
-  kable(digits = 5, escape = FALSE) %>%
+  kable(digits = 4, escape = FALSE) %>%
   kable_styling(full_width = FALSE) %>%
-  add_header_above(c(" " = 1, "Random Forest Model Metrics" = 1)) %>%
+  add_header_above(c(" " = 1, "Model Evaluation Metrics" = 1)) %>%
   column_spec(1, bold = TRUE, width = "12em")
 
+# Extract variable importance
+var_importance <- varImp(rf_model, scale = TRUE)
+
+# Convert to tibble for display
+importance_table <- as_tibble(var_importance$importance, rownames = "Variable") %>%
+  arrange(desc(Overall)) %>%  # Sort by importance
+  mutate(Overall = round(Overall, 2))  # Round importance scores
+
+# Summing up rows for month6 to month11
+month_sum <- importance_table %>%
+  filter(grepl("^month[6-9]|month1[01]$", Variable)) %>% # Select month6 to month11
+  summarise(Overall = sum(Overall)) %>%                # Sum their importance
+  mutate(Variable = "month")                           # Add the new row label
+
+# Removing rows for month6 to month11 and adding the summarized row
+importance_table_transformed <- importance_table %>%
+  filter(!grepl("^month[6-9]|month1[01]$", Variable)) %>% # Remove month6 to month11 rows
+  bind_rows(month_sum)                                    # Add the new row
+
+
+# Summing up rows for categoryFruit, categorySolid, and categoryYogurt
+category_sum <- importance_table_transformed %>%
+  filter(Variable %in% c("categoryFruit", "categorySolid", "categoryYogurt")) %>% # Select relevant rows
+  summarise(Overall = sum(Overall)) %>%                                         # Sum their importance
+  mutate(Variable = "category")                                                 # Add the new row label
+
+# Removing rows for categoryFruit, categorySolid, and categoryYogurt
+# Adding the summarized row
+importance_table_transformed_2 <- importance_table_transformed %>%
+  filter(!Variable %in% c("categoryFruit", "categorySolid", "categoryYogurt")) %>% # Remove old rows
+  bind_rows(category_sum) 
+
+
+# Summing up rows for all remaining variables (excluding Category, month, vendor, avg_rainfall)
+month_category_sum <- importance_table_transformed_2  %>%
+  filter(!Variable %in% c("category", "month", "vendor", "avg_rainfall")) %>% # Select remaining rows
+  summarise(Overall = sum(Overall)) %>%                                       # Sum their importance
+  mutate(Variable = "month:category")                                         # Add the new row label
+
+# Removing old rows and adding the new row
+final_importance_table <- importance_table_transformed_2  %>%
+  filter(Variable %in% c("category", "month", "vendor", "avg_rainfall")) %>% # Keep important rows
+  bind_rows(month_category_sum)                                              # Add the new summarized row
+
+# Arrange the table for better readability
+final_importance_table <- final_importance_table %>%
+  arrange(desc(Overall))
+
+# Rename avg_rainfall to average rainfall
+final_importance_table <- final_importance_table %>%
+  mutate(Variable = ifelse(Variable == "avg_rainfall", "average rainfall", Variable))
+
+
 # Display variable importance table
-importance_table %>%
-  mutate(
-    `%IncMSE` = round(`%IncMSE`, 2),
-    `IncNodePurity` = round(`IncNodePurity`, 2)
-  ) %>%
+final_importance_table  %>%
   kable(digits = 2, escape = FALSE) %>%
   kable_styling(full_width = FALSE) %>%
-  add_header_above(c(" " = 1, "Variable Importance in Random Forest Model" = 2)) %>%
+  add_header_above(c(" " = 1, "Variable Importance" = 1)) %>%
   column_spec(1, bold = TRUE, width = "12em")
 
 
@@ -469,23 +539,16 @@ importance_table %>%
 
 Due to the limitations of linear models in handling interaction terms, we propose an optimized model—Random Forest. The consistently poor performance of linear models suggests that a linear relationship may not adequately explain the price changes of banana and strawberry flavored products in relation to the predictors. We chose Random Forest because our data includes interaction terms, and linear analysis is not suitable for such data. Random Forest excels at handling interactions and nonlinear relationships, as it can automatically identify and leverage these complex interactions through its decision tree structure without the need for manual adjustments. In contrast, linear models have limited capacity to handle interactions, requiring manual specification, and are less effective at capturing nonlinear effects.
 
-[@tbl-rfsum] presents the prediction results obtained using Random Forest.
+[@tbl-rfsum] presents the prediction results obtained using the Random Forest model.
 
-Compared to Linear Model 2, the best performing linear model, the Random Forest model demonstrates significantly better predictive accuracy. Model 2, which incorporates basic predictors (Vendor, Category, Month, and Average Rainfall) along with an interaction between Category and Month, achieves an R² of 0.00890 and an RMSE of 0.50853, suggesting minimal improvement in prediction accuracy. In contrast, the Random Forest model, with 500 trees and an Out-of-Bag MSE of 0.25972, delivers a substantial reduction in error and appears to capture more of the underlying complexity in the data.
+Compared to the best performing Linear Model 2, the Random Forest model demonstrates higher predictive accuracy. Model 2, which includes basic predictors (Vendor, Category, Month, and Average Rainfall) along with an interaction between Category and Month, achieves an RMSE of 0.50853, indicating limited improvement in prediction accuracy. On the other hand, the Random Forest model, with 200 trees, achieves an RMSE of 0.5076, showcasing a slight reduction in error and an overall better fit to the data.
 
-While the linear models struggle to account for interactions and non-linear relationships, the Random Forest model effectively handles these through its decision tree structure. This allows it to automatically detect and utilize complex interactions between variables, leading to a much better fit. In conclusion, the Random Forest model outperforms Model 2 by a significant margin, providing stronger predictive power and better handling of the data's complexity.
+The Random Forest model further outperforms the linear model in handling complex relationships and interactions. By incorporating important variables such as Vendor, Month, Month:Category, and Average Rainfall, and automatically detecting complex interactions between predictors, the Random Forest model demonstrates its ability to account for these factors effectively. Notably, the model's variable importance analysis reveals that 'Vendor' has the most significant impact on predictions, followed by 'Month' and 'Month:Category', highlighting the model’s capacity to prioritize key features. In conclusion, the Random Forest model provides stronger predictive power and better captures the underlying complexities of the data, surpassing the linear model in performance.
 
-[@tbl-rfsum] also presents the variable importance metrics for the Random Forest model, including both the %IncMSE and IncNodePurity values, which help identify how each predictor contributes to the model’s performance.
 
-The Category variable stands out as the most important predictor, with a %IncMSE of 19.34 and an IncNodePurity of 5.63. This suggests that changes in food category have the greatest impact on the model’s predictive accuracy and contribute strongly to reducing the impurity of the decision nodes in the trees. Vendor follows closely, with a %IncMSE of 13.52 and an IncNodePurity of 7.73, indicating that the vendor also plays a significant role in determining price changes, though slightly less than category.
-
-Month and Average Rainfall also show notable importance, with %IncMSE values of 14.32 and 11.44, respectively. These variables contribute moderately to the model's predictive accuracy, with month playing a key role in capturing seasonal effects and rainfall influencing potential price fluctuations related to environmental factors.
-
-Finally, Flavor exhibits the lowest importance, with a negative %IncMSE of -1.11, which suggests that including flavor as a predictor may actually decrease the model’s accuracy, although its IncNodePurity value of 1.34 shows it still holds some relevance in the decision-making process.
-
-In conclusion, Category and Vendor are the most influential variables in the Random Forest model, while Flavor has the least impact, possibly detracting from the overall performance. These insights help refine the model and highlight the factors that most strongly influence price variations.
 
 # Result {#sec-results}
+
 
 ```{r}
 #| label: tbl-resultone
@@ -518,7 +581,7 @@ flavor_summary <- flavor_data %>%
 flavor_summary %>%
   kable(
     col.names = c("Flavor", "Avg Change", "Median Change", "Min Change", "Max Change", "SD of Change", "Sample Size"),
-    digits = 3,
+    digits = 4,
     booktabs = TRUE) %>%
   kable_styling(latex_options = c("striped", "scale_down"))
 
@@ -526,9 +589,43 @@ flavor_summary %>%
 
 ```
 
-[@tbl-resultone] summarizes the price change statistics for banana and strawberry flavored products.
+[@tbl-resultone] summarizes the price change statistics for banana and strawberry flavored products predicted by linear model two.
 
-Banana flavored products have an average price change of 0.009, with a median change of 0.018 across 1,376 products. Strawberry-flavored products show a slightly higher average change of 0.010, with a median of 0.021. For both of the flavors, their price changes  range from -0.109 to 0.112. However, for banana flavored product, their sample size is roughly only a quarter of strawberry product sample size.Overall, strawberry-flavored products exhibit slightly higher average price changes and more variation compared to banana-flavored products.
+Banana flavored products have an average price change of 0.0091, with a median change of 0.0181 across 1,376 products. Strawberry-flavored products show a slightly higher average change of 0.0100, with a median of 0.0207. For both of the flavors, their price changes  range from -0.109 to 0.1125. However, for banana flavored product, their sample size is roughly only a quarter of strawberry product sample size.Overall, strawberry-flavored products exhibit slightly higher average price changes and more variation compared to banana-flavored products.
+
+```{r}
+#| label: tbl-resulttwo
+#| tbl-cap: "Summary Statistics of Predicted Change in Average Price of Strawberry and Banana Flavored Product by Random Forest"
+#| echo: false
+#| warning: false
+#| message: false
+
+
+tree_data <- tree_data[, !duplicated(names(tree_data))]
+
+tree_data <- tree_data %>%
+  mutate(PredictedPriceChange = predict(rf_model, newdata = tree_data))
+
+results <- tree_data %>%
+  group_by(flavor) %>%
+  summarise(AveragePredictedPriceChange = mean(PredictedPriceChange))
+
+total_change <- sum(results$AveragePredictedPriceChange)
+
+results %>%
+  kable(
+    col.names = c("Flavor", "Average Predicted Price Change"),
+    digits = 4,
+    booktabs = TRUE
+  ) %>%
+  kable_styling(latex_options = c("striped", "scale_down"))
+
+```
+
+[@tbl-resulttwo] summarizes the price change statistics for banana and strawberry flavored products predicted by random forest model.
+
+Banana flavored products have an average price change of 0.0085, while strawberry flavored products show a slightly higher average change of 0.0103. This result means that for random forest estimation, the price of both banana and strawberry flavored products are gonna increase, but only by very little scale.
+
 
 ```{r}
 #| label: fig-lmone
@@ -619,7 +716,7 @@ ggplot(predict_data_rf, aes(x = as.factor(month), y = predicted_price_change, co
 
 To address the limitations of the linear model, we also generated predictions using the random forest model, as shown in [@fig-rfone] and [@fig-rftwo].
 
-[@fig-rfone] illustrates the predicted price changes for banana and strawberry-flavored products across months. Whi le the differences are not pronounced, there are notable variations in their distributions. In July, August, and September, prices for both flavors decline, with banana-flavored products experiencing a steeper drop. By October, prices for both flavors rise, with a sharper increase for banana-flavored products. In November, price increases continue but at a slower pace, with some products, particularly banana-flavored ones, showing significant price reductions. Overall, the price changes largely fall within a range of ±0.1 units.
+[@fig-rfone] illustrates the predicted price changes for banana and strawberry-flavored products across months. While the differences are not pronounced, there are notable variations in their distributions. In July, August, and September, prices for both flavors decline, with banana-flavored products experiencing a steeper drop. By October, prices for both flavors rise, with a sharper increase for banana-flavored products. In November, price increases continue but at a slower pace, with some products, particularly banana-flavored ones, showing significant price reductions. Overall, the price changes largely fall within a range of ±0.1 units.
 
 ```{r}
 #| label: fig-rftwo
@@ -660,24 +757,30 @@ ggplot(predict_data_rf, aes(x = category, y = predicted_price_change, color = pr
 
 ## Summery of Findings
 
-Our model predicts a narrow victory for Donald Trump, with an average support of 44.51% compared to Kamala Harris’s 43.86%. This result aligns with the predictions from our Random Forest model in [@tbl-rf], which also suggests a slight edge for Trump. However, since a higher popular vote does not guarantee an election win, and both models indicate no significant lead, we hesitate to conclude that Trump is highly likely to win.
+In our study, we analyzed the price changes of banana and strawberry-flavored products using both linear and Random Forest models. The linear model showed an average price change of 0.0091 for banana-flavored products and 0.0100 for strawberry-flavored products. The Random Forest model yielded similar results, with banana-flavored products averaging a price change of 0.0085, slightly lower than strawberry-flavored products at 0.0103. Both models indicated small price increases from July to November, with some differences in the distribution of price changes. July remained stable, while August and September saw slight declines. October and November experienced small increases, with the largest rise in October. Overall, price changes for both flavors stayed within ±0.1 units. Across food categories, beverages, fruits, and solid snacks showed price increases, while yogurt remained stable. Only in the flavored tea category did we observe a difference: banana-flavored products decreased, while strawberry-flavored ones increased. Overall, both models showed similar trends, with banana and strawberry products experiencing slight price increases, and strawberry-flavored products seeing a slightly higher increase.
 
-Looking at support across states, Trump has a clear advantage in the swing states, which strengthens his position in our prediction. Out of seven swing states: Wisconsin, Pennsylvania, North Carolina, Nevada, Michigan, Georgia, and Arizona [@swing], Trump leads six. Since swing states play an important role in the election outcome, we believe that even with a slight national lead, Trump’s support in these states could give him an advantage over Harris.
 
-Among all predictor variables, state and the recency of poll data stand out as the most effective indicators of support trends. This finding aligns with structural aspects of the U.S. election system: most states use a “winner-takes-all” approach, where winning the majority yields all electoral votes, and many states have strong historical party preferences. Consequently, state-level support has a direct impact on the election outcome. Additionally, as Election Day nears, polling data becomes increasingly accurate, better reflecting actual voter intentions.
+This result surprised us, as our initial hypothesis assumed bananas to be more popular in winter and strawberries in summer. However, the model predicts that the price of strawberry-flavored products will increase more than that of banana-flavored ones. This suggests that while seasonal fruits may be more popular during their peak seasons, it does not necessarily mean their flavored products are less favored in off-seasons. For example, during winter, people might be even more inclined to purchase strawberry-flavored products to enjoy the taste of strawberries, rather than opting for banana-flavored ones.
+
+Among all predictors, vendor and month are the most influential, while food category and average rainfall have relatively limited impact. Interestingly, the interaction between month and food category is the second most important predictor after month. We believe the dominance of vendor is due to the unique sales strategies each vendor employs, such as deciding which products to sell and how to adjust prices across different periods and categories. This makes vendor the most significant contributor to price changes, as vendors directly control pricing. The next most important predictors are month and its interaction with category, which reflects seasonal variations in consumer behavior and preferences for different food types. The interaction term provides deeper insights into these temporal consumption patterns. Although food category and average rainfall contribute less, both have importance values exceeding 20, demonstrating their limited but indispensable role in the model.
 
 ## Limitation
 
-Our analysis focuses exclusively on data related to Trump, which may weaken the overall analysis. In organizing the data, we excluded poll data with low numeric grades to enhance its credibility; however, this approach resulted in a smaller sample size and reduced coverage. When examining the relationship between state and supporting percentage (PCT), we did not integrate PCT with sample size for comparison. We believe that all decisions made by the collective data should be treated equally, regardless of sample size. This perspective has led to some counterintuitive results, such as states where Trump’s party is strong giving him fewer votes. Additionally, a significant portion of our raw data lacks exact state labels, which introduces errors in analyzing the relationship between state and PCT, even after processing.
+The model's subpar performance highlights a major limitation of this study: the quality of the original dataset, which significantly impacted the model's accuracy.
 
-Choosing a linear regression model to predict election results has several clear drawbacks. First, linear regression assumes a linear relationship between variables, which often does not hold in reality. Additionally, linear models have limitations when handling multiple interaction terms. In our model, we selected a three-way interaction term by combining Vendors, Category, and State. This increases the complexity of the model, but linear regression struggles to automatically adapt to and capture these complex interactions, potentially leading to less accurate predictions.
-Furthermore, linear regression is sensitive to outliers and noise in the data, making the model susceptible to instability due to these factors. It is also vulnerable to multicollinearity; for instance, Numeric Grade and Poll Score may have high correlations, which can make the model coefficients unreliable. This sensitivity and reliance on linear assumptions reduce the model’s ability to accurately predict complex, nonlinear relationships in the data.
+First, while data collection from vendor websites began on February 28, 2024, as noted by the dataset's creator, only a small number of products were captured until July 10, when large-scale scraping commenced. Unfortunately, strawberry- and banana-flavored products were not included in the earlier data. The earliest recorded prices for these products appear on June 11, leaving nearly four months of missing data. This substantial gap reduced both the dataset's size and its temporal coverage, making predictions more challenging.
+
+Second, the dataset's diversity in product categories and inconsistent labeling across vendors resulted in significant data heterogeneity. For example, units of measurement were not standardized. Ideally, predictions should have been based on consistent units, such as price per 100g of bananas or per 100ml of strawberry beverages. However, some products were only listed with unit prices, while others had inconsistent units—for instance, yogurt prices were listed per 100g, per 100ml, or per box. This forced us to rely on unit prices, a less precise approach. For example, a 300ml beverage and a 2L beverage may have vastly different prices, but their per-100ml prices could be similar.
+
+Third, the dataset had an uneven distribution of products between the two flavors. Strawberry-flavored products, likely due to their broader popularity or insufficient representation of banana-flavored products in the dataset, were far more prevalent. This resulted in denser data distributions for strawberry products compared to bananas, potentially introducing bias in banana product predictions. In some categories, such as flavored tea, the number of banana-flavored products was particularly sparse, further exacerbating prediction biases.
+
+Lastly, our assumptions may not align with real-world dynamics. We hypothesized that seasonal fruits would see higher demand and prices during their peak seasons, with lower off-season demand. However, this may only hold for the fruits themselves and not their flavored products, which could be influenced by more significant factors than seasonality. Off-season sales, for instance, might not lead to price decreases but rather increases, as higher prices might offset lower demand. Overall, food price changes are influenced by numerous factors, making this a highly complex and nuanced subject. We underestimated the challenges of modeling price dynamics accurately.
 
 ## Future Study
 
-In future research, if we continue to use a linear regression model to study U.S. election outcomes, we will focus on enhancing the model’s stability and generalization ability. We may consider using Lasso regression to reduce overfitting and address issues with model accuracy, ensuring that our model performs better when handling different or more complex datasets. Additionally, to prepare for the next election, we may introduce more data parameters and sources to improve the accuracy and applicability of election predictions, helping to decrease biases and false data caused by subjective factors. For example, we could incorporate demographic data, regional economic data, and social sentiment analysis to add parameters that reduce subjective influence, providing the model with a new perspective to analyze how different economic and cultural factors affect presidential choice across regions. 
+Future research should address the limitations identified in this study to enhance the accuracy of modeling price changes for seasonal fruit-flavored products. First, improved data collection methods are essential. Future efforts should ensure consistent and comprehensive data coverage for all target product categories and flavors from the initial scraping period, ideally spanning 2–3 years to improve reliability. Second, standardizing product measurement units is crucial for enhancing prediction accuracy. Converting prices to uniform units, such as per 100 grams or per 100 milliliters, would reduce data heterogeneity and enable more meaningful comparisons. Efforts should also be made to unify units within the same food category and to resolve inconsistencies through manual data supplementation or improved web-scraping methods. For example, fruit prices could be collected uniformly per 100 grams, while beverages could be standardized per 100 milliliters. Products lacking detailed unit information, such as “boxed fruits” or “a case of strawberry juice,” could be supplemented with manual research or advanced scraping techniques. Lastly, incorporating additional predictive factors such as regional variations, promotional activities, or consumer preferences could provide deeper insights into the drivers of price changes. Leveraging these improvements, future studies could develop more robust models to better understand and forecast the dynamics of seasonal fruit-flavored product prices.
 
-Moreover, by analyzing voter characteristics, we could address the instability of swing state data by building a profile of swing state voters and their characteristics to better predict the outcome in these states. If linear regression proves insufficient, we may consider more complex models, such as Random Forests or Neural Networks, to better capture nonlinear relationships and complex interactions among variables. Ultimately, this approach could lead to a more accurate election prediction model.
+To build on the existing work with linear models and Random Forest, future studies could explore alternative machine learning algorithms that might better capture the complexities of flavored product price dynamics. Gradient Boosting Machines (GBMs), such as XGBoost or LightGBM, could be particularly effective, as they excel in handling structured data and capturing non-linear relationships while minimizing overfitting. Similarly, Support Vector Machines (SVMs) could be applied, especially if the focus shifts to classification tasks, such as identifying the likelihood of price increases or decreases based on features like flavor and category.
 
 
 \newpage

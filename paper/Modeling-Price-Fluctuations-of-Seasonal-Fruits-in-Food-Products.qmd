@@ -3,7 +3,7 @@ title: "Modeling Price Change of Seasonal Fruits-Flavored Food Products: A Predi
 subtitle: "The Price of Strawberry and Banana-Flavored Products will Increase after November, with Strawberry Flavored Products Rising More in Price"
 author: 
   - Yiyi Feng
-thanks: "Code and data are available at: https://github.com/kqlqkqlqF/Insights-and-Predictions-for-the-U.S.-Election.git."
+thanks: "Code and data are available at: https://github.com/kqlqkqlqF/Modeling-Price-Fluctuations-of-Seasonal-Fruits-in-Food-Products.git."
 date: today
 date-format: long
 abstract: "This study develops a model to predict price changes for seasonal fruit-flavored products during in-season and off-season periods. It forecasts price increases for strawberry and banana-flavored products after November, with a larger rise for strawberry. Vendor and month are key factors in price trends, but the complexity of price changes calls for further investigation. Due to the complex dynamics of seasonal fruit-flavored product price changes, improved data collection is essential for more accurate forecasting."
@@ -51,9 +51,9 @@ rain_data <- read_parquet(here::here("data/02-analysis_data/average_rain_data.pa
 
 As a fruit enthusiast, I’ve noticed seasonal fruits show significant price changes between in-season and off-season periods. This raises the question: do seasonal fruit-flavored products follow similar patterns, and what drives these changes? What are the key factors driving these price changes? This study uses Canadian grocery price data from eight major vendors to build a predictive model analyzing seasonal fruit-flavored product pricing and identifying key factors influencing price dynamics.
 
-Our estimand focuses on the price changes in seasonal fruit-flavored products during in-season and off-season periods, focusing on strawberries and bananas due to their popularity as summer and winter fruits []. These choices ensure a sufficiently large sample size for analysis. Other seasonal fruits, such as watermelons, were excluded due to their relatively smaller consumer base in North America compared to Asia.
+Our estimand focuses on the price changes in seasonal fruit-flavored products during in-season and off-season periods, focusing on strawberries and bananas due to their popularity as summer and winter fruits [@watson] [@reeves]. These choices ensure a sufficiently large sample size for analysis. Other seasonal fruits, such as watermelons, were excluded due to their relatively smaller consumer base in North America compared to Asia.
 
-We used a linear model to estimate price changes for strawberry- and banana-flavored products, including predictors like vendor, month, rainfall, food category, and their interactions. The goal was to understand how these factors affect price fluctuations and seasonal pricing patterns.
+We used a linear model to estimate price changes for strawberry and banana-flavored products, including predictors like vendor, month, rainfall, food category, and their interactions. The goal was to understand how these factors affect price fluctuations and seasonal pricing patterns.
 
 Our model predicts small price increases for both banana and strawberry-flavored products, with average monthly increases of 0.0085 and 0.0103, respectively. Monthly trends show stability in July, slight decreases in August and September, and increases in October and November. The most significant factors influencing price changes are vendor, month, and the interaction between month and food category, emphasizing the important roles of vendors, timing, and product category in price fluctuations.
 
@@ -64,9 +64,9 @@ The remainder of this paper is structured as follows: [@sec-data] provides an ov
 
 ## Overview
 
-We used R [@citeR] to analyze Canadian grocery price data. The dataset, from Jacob Filipp's Project Hammer [@hammer], tracks price changes from eight vendors: Voila, T&T, Loblaws, No Frills, Metro, Galleria, Walmart, and Save-On-Foods, from February 28, 2024 to November 26, 2024. To examine factors influencing the price of seasonal fruit-flavored foods, we included data on vendor, rainfall, month, and food category, along with rainfall data from the "About Rain Gauge Locations and Precipitation" dataset for opendataToronto [@open].
+We used R [@citeR] to analyze Canadian grocery price data. The dataset, from Jacob Filipp's Project Hammer [@hammer], tracks price changes from eight vendors: Voila, T&T, Loblaws, No Frills, Metro, Galleria, Walmart, and Save-On-Foods, from February 28, 2024 to November 26, 2024. To examine factors influencing the price of seasonal fruit-flavored foods, we included data on vendor, rainfall, month, and food category, along with rainfall data from the "About Rain Gauge Locations and Precipitation" dataset for opendataToronto [@opendatatoronto].
 
-Several R packages were essential for our data manipulation, modeling, and visualization efforts. dplyr facilitated data transformation and summarization [@dplyr], while modelsummary enhanced the presentation of model outputs [@modelsummary]. kableExtra improved data presentation with customizable tables [@kableExtra], and testthat ensured code reliability [@testthat]. Lubridate and stringr simplified date-time handling and string manipulation [@lubridate] [@stringr]. For efficient data storage, tibble and arrow enhanced our workflow with memory-efficient data frames and fast data reading/writing [@tibble] [@arrow]. Caret and randomForest supported machine learning, and rstanarm provided Bayesian regression tools [@caret] [@randomForest] [@rstanarm]. Finally, ggplot2 powered visualizations, and knitr streamlined reproducible reporting [@ggplot2] [@knitr]. This robust package ecosystem aligned with best practices, as noted in [@tellingstories].
+Several R packages were essential for our data manipulation, modeling, and visualization efforts. dplyr facilitated data transformation and summarization [@dplyr], while modelsummary enhanced the presentation of model outputs [@modelsummary]. kableExtra improved data presentation with customizable tables [@kableExtra], and testthat ensured code reliability [@testthat]. Lubridate and stringr simplified date-time handling and string manipulation [@lubridate] [@stringr]. For efficient data storage, tibble and arrow enhanced our workflow with memory-efficient data frames and fast data reading/writing [@tibble] [@arrow]. Caret and randomForest supported machine learning, and rstanarm provided Bayesian regression tools [@caret] [@randomForest] [@rstanarm]. Finally, ggplot2 powered visualizations, and knitr streamlined reproducible reporting [@gg2] [@knitr]. This robust package ecosystem aligned with best practices, as noted in [@tellingstories].
 
 ## Measurement
 
@@ -79,7 +79,7 @@ Since the data comes from website scraping, it contains many gaps and ambiguitie
 
 We considered sources such as Statistics Canada, the Retail Council of Canada, and Open Data Portals, but after reviewing their datasets, we found they did not meet our study’s requirements. These datasets focus on broad food categories, not specific flavored products like strawberries or bananas. Additionally, they lack the detailed time scale and vendor-level data necessary for tracking monthly price changes, which are crucial for modeling seasonal price shifts. As a result, we determined these sources were not suitable for our research.
 
-To better analyze price changes for banana and strawberry-flavored foods, we added data from the \textbf{"About Rain Gauge Locations and Precipitation"} dataset from Open Data Toronto []. This dataset includes rain gauge locations across Toronto and recorded precipitation. Rainfall was included as a predictor since consumer demand for seasonal fruits often correlates with weather conditions, such as a preference for watermelon and strawberries during dry summers []. The dataset only uses rainfall data because the original grocery price data lacks sales location details.
+To better analyze price changes for banana and strawberry-flavored foods, we added data from the \textbf{"About Rain Gauge Locations and Precipitation"} dataset from Open Data Toronto [@opendatatoronto]. This dataset includes rain gauge locations across Toronto and recorded precipitation. Rainfall was included as a predictor since consumer demand for seasonal fruits often correlates with weather conditions, such as a preference for watermelon and strawberries during dry summers [@watson]. The dataset only uses rainfall data because the original grocery price data lacks sales location details.
 
 This structured dataset enables us to analyze trends in seasonal fruit-flavored food prices over time. The goal is to examine price trends for these foods during in-season and off-season sales and identify key influencing factors.
 
@@ -256,6 +256,7 @@ ggplot(model_data, aes(x = category, y = monthly_avg_price, color = monthly_avg_
   ) +
   theme_minimal() +
   theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
     axis.title = element_text(size = 14),
     axis.text = element_text(size = 12),
     strip.text = element_text(size = 12)
@@ -347,18 +348,17 @@ Where
 
 -   $y_i$ : The percentage of support for candidate in poll i.
 -   $\beta_0$: Intercept term, representing the predicted `Average price of the Product` when all independent variables are 0.
--   $\beta_1$: Main effect of `Vendor`, capturing the influence of the candidate.
--   $\beta_2$: Main effect of `Category`, reflecting the influence of how recent the poll is on `Average price of the Product`.
--   $\beta_3$: Main effect of `Month`, indicating the impact of different states on `Average price of the Product`.
--   $\beta_4$: Main effect of `Average Rainfall`, indicating the impact of different states on `Average price of the Product`.
--   $\beta_5$: Interaction effect between `Vendor` and `Category`, capturing the combined influence of the candidate and state.
--   $\beta_6$: Interaction effect between `Category` and `Month`, reflecting the joint impact of recency and state on `pct`.
--   $\beta_7$: Interaction effect between `Month` and `Average rainfall`, representing the combined influence of the candidate and recency of the poll.
--   $\beta_8$: Interaction effect between `Category` and `Average rainfall`, representing the combined influence of the candidate and recency of the poll.
+-   $\beta_1$: Main effect of `Vendor`, capturing the influence of different vendors.
+-   $\beta_2$: Main effect of `Category`, reflecting effect of different food categories on price change.
+-   $\beta_3$: Main effect of `Month`, indicating the impact of month, which is times, on price change.
+-   $\beta_4$: Main effect of `Average Rainfall`, indicating the impact of different monthly average rainfall level on price change.
+-   $\beta_5$: Interaction effect between `Vendor` and `Category`, capturing the combined influence of the `Vendor` and `Category`.
+-   $\beta_6$: Interaction effect between `Category` and `Month`, reflecting the joint impact of `Category` and `Month` on price change.
+-   $\beta_7$: Interaction effect between `Month` and `Average rainfall`, representing the combined influence of `Month` and `Average rainfall`.
+-   $\beta_8$: Interaction effect between `Category` and `Average rainfall`, representing the combined influence of `Category` and `Average rainfall`.
 -   $\epsilon_i$: The error term, assumed to follow a normal distribution with mean 0.
 
 ### Model Interpretation
-
 
 This regression model predicts price changes for strawberry and banana-flavored products by incorporating both main effects and interaction terms. The intercept represents the baseline price change when all predictors are zero. Main effects, such as vendor, average rainfall, food category, and month, capture the independent influence of each factor on price. For example, strawberry-flavored products, typically associated with summer, may see price drops as the months move into winter.
 
@@ -370,7 +370,7 @@ An error term is included to account for unexplained variability, improving the 
 
 ```{r}
 #| label: tbl-linear
-#| tbl-cap: "Predicted Average Supporting Percentages for Donald Trump vs. Kamala Harris by Random Forest"
+#| tbl-cap: "Linear Model Summary with Included Variables and Interactions"
 #| echo: false
 #| warning: false
 #| message: false
@@ -424,6 +424,9 @@ In conclusion, none of the models provide strong predictive accuracy, but Model 
 ## Optimization
 
 ```{r}
+#| echo: false
+#| warning: false
+#| message: false
 
 tree_data <- model_data
 
@@ -459,6 +462,7 @@ rf_model <- train(
 
 ```{r}
 #| label: tbl-rfsum
+#| tbl-cap: "Table of Model Evaluation Metrics and Variable Importance by Random Forest"
 #| echo: false
 #| warning: false
 #| message: false
@@ -543,16 +547,15 @@ final_importance_table  %>%
 
 ```
 
-Due to the limitations of linear models in handling interaction terms, we propose an optimized model—Random Forest. The consistently poor performance of linear models suggests that a linear relationship may not adequately explain the price changes of banana and strawberry flavored products in relation to the predictors. We chose Random Forest because our data includes interaction terms, and linear analysis is not suitable for such data. Random Forest excels at handling interactions and nonlinear relationships, as it can automatically identify and leverage these complex interactions through its decision tree structure without the need for manual adjustments. In contrast, linear models have limited capacity to handle interactions, requiring manual specification, and are less effective at capturing nonlinear effects.
+Linear models performed poorly in predicting price changes for banana and strawberry-flavored products, highlighting their limitations in handling interaction terms and nonlinear relationships. To address this, we propose using Random Forest, a model well-suited for capturing complex interactions and nonlinearity. Unlike linear models, which require manual specification of interaction terms and struggle with nonlinear effects, Random Forest automatically detects and incorporates these relationships through its decision tree structure, providing a more robust approach for this analysis.
 
-[@tbl-rfsum] presents the prediction results obtained using the Random Forest model.
+Through [@tbl-rfsum], we can compare the evaluation metrics and variable importance for the Random Forest model and the best-performing linear model (Model 2).
 
-Compared to the best performing Linear Model 2, the Random Forest model demonstrates higher predictive accuracy. Model 2, which includes basic predictors (Vendor, Category, Month, and Average Rainfall) along with an interaction between Category and Month, achieves an RMSE of 0.50853, indicating limited improvement in prediction accuracy. On the other hand, the Random Forest model, with 200 trees, achieves an RMSE of 0.5076, showcasing a slight reduction in error and an overall better fit to the data.
+Model 2, which includes basic predictors (Vendor, Category, Month, and Average Rainfall) along with an interaction between Category and Month, achieves an RMSE of 0.5085. The Random Forest model, using 200 trees, slightly improves on this with an RMSE of 0.5076. While the reduction in error is minor, the Random Forest model provides a better overall fit to the data. The Random Forest model demonstrates a stronger ability to handle complex relationships and interactions that are challenging for linear models. It automatically incorporates key predictors like Vendor, Month, Month: Category, and Average Rainfall while effectively capturing intricate interactions between variables. Variable importance analysis identifies 'Vendor' as the most influential predictor, followed by 'Month' and 'Month: Category.'
 
-The Random Forest model further outperforms the linear model in handling complex relationships and interactions. By incorporating important variables such as Vendor, Month, Month:Category, and Average Rainfall, and automatically detecting complex interactions between predictors, the Random Forest model demonstrates its ability to account for these factors effectively. Notably, the model's variable importance analysis reveals that 'Vendor' has the most significant impact on predictions, followed by 'Month' and 'Month:Category', highlighting the model’s capacity to prioritize key features. In conclusion, the Random Forest model provides stronger predictive power and better captures the underlying complexities of the data, surpassing the linear model in performance.
+In conclusion, while the Random Forest model only slightly reduces the RMSE compared to the linear model, it offers greater predictive power by accounting for the data's underlying complexities and interactions more effectively.
 
 # Result {#sec-results}
-
 
 ```{r}
 #| label: tbl-resultone
@@ -589,13 +592,11 @@ flavor_summary %>%
     booktabs = TRUE) %>%
   kable_styling(latex_options = c("striped", "scale_down"))
 
-
-
 ```
 
 [@tbl-resultone] summarizes the price change statistics for banana and strawberry flavored products predicted by linear model two.
 
-Banana flavored products have an average price change of 0.0091, with a median change of 0.0181 across 1,376 products. Strawberry-flavored products show a slightly higher average change of 0.0100, with a median of 0.0207. For both of the flavors, their price changes  range from -0.109 to 0.1125. However, for banana flavored product, their sample size is roughly only a quarter of strawberry product sample size.Overall, strawberry-flavored products exhibit slightly higher average price changes and more variation compared to banana-flavored products.
+Banana-flavored products have an average price change of 0.0091, with a median change of 0.0091 across 1,376 products. Strawberry-flavored products show a slightly higher average change of 0.0100, with a median of 0.0207 across 4,622 products. For both of the flavors, their price changes range from -0.109 to 0.1125. However, for banana flavored products, their sample size is roughly only a quarter of strawberry product sample size. Overall, strawberry-flavored products exhibit slightly higher average price changes and more variation compared to banana-flavored products.
 
 ```{r}
 #| label: tbl-resulttwo
@@ -626,14 +627,14 @@ results %>%
 
 ```
 
-[@tbl-resulttwo] summarizes the price change statistics for banana and strawberry flavored products predicted by random forest model.
+[@tbl-resulttwo] summarizes the price change statistics for banana and strawberry-flavored products predicted by a random forest model.
 
-Banana flavored products have an average price change of 0.0085, while strawberry flavored products show a slightly higher average change of 0.0103. This result means that for random forest estimation, the price of both banana and strawberry flavored products are gonna increase, but only by very little scale.
+Banana-flavored products have an average price change of 0.0085, while strawberry-flavored products show a slightly higher average change of 0.0103. This result means that for random forest estimation, the price of both banana and strawberry-flavored products are gonna increase, but strawberry-flavored products get a slightly higher rise in price.
 
 
 ```{r}
 #| label: fig-lmone
-#| fig-cap: Distribution of Linear Model Two Predicted Monthly Price Changes for Banana and Strawberry Products by Month  
+#| fig-cap: "Distribution of Linear Model Two Predicted Monthly Price Changes for Banana and Strawberry Products by Month"
 #| echo: false
 #| eval: true
 #| warning: false
@@ -643,10 +644,15 @@ Banana flavored products have an average price change of 0.0085, while strawberr
 ggplot(predict_data_lm, aes(x = as.factor(month), y = Predicted_Price_Change, color = Predicted_Price_Change)) +
   geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
   geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
-  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+   scale_color_gradient(
+    low = "blue", 
+    high = "red", 
+    name = "Predicted Average Price Change"  # Set the legend title
+  ) +
   labs(
     x = "Month",
-    y = "Average Price") +
+    y = "Predicted Average Price Change"
+  ) +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
@@ -657,11 +663,11 @@ ggplot(predict_data_lm, aes(x = as.factor(month), y = Predicted_Price_Change, co
 
 ```
 
-[fig-lmone] illustrates the predicted monthly price changes for strawberry and banana-flavored products. The price trends show no significant differences between the two flavors, with nearly stable prices in July, a slight dip in August, and minor increases in October and November. October saw the highest increase, while August experienced the largest decrease. However, the average price changes remained within ±0.1 units, indicating limited fluctuation.
+[@fig-lmone] illustrates the predicted monthly price changes for strawberry and banana-flavored products. The price trends show no significant differences between the two flavors, with nearly stable prices in July, a slight dip in August and September, and minor increases in October and November. October saw the highest increase, while August experienced the largest decrease. However, the average price changes remained within ±0.1 units, indicating limited fluctuation.
 
 ```{r}
 #| label: fig-lmtwo
-#| fig-cap: Distribution of Linear Model Two Predicted Monthly Price Changes for Banana and Strawberry Products by Category
+#| fig-cap: "Distribution of Linear Model Two Predicted Monthly Price Changes for Banana and Strawberry Products by Category"
 #| echo: false
 #| eval: true
 #| warning: false
@@ -671,10 +677,14 @@ ggplot(predict_data_lm, aes(x = as.factor(month), y = Predicted_Price_Change, co
 ggplot(predict_data_lm, aes(x = category, y = Predicted_Price_Change, color = Predicted_Price_Change)) +
   geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
   geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
-  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  scale_color_gradient(
+    low = "blue", 
+    high = "red", 
+    name = "Predicted Average Price Change"  # Set the legend title
+  ) +
   labs(
-    x = "Food Category",
-    y = "Average Price"
+    x = "Month",
+    y = "Predicted Average Price Change"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
@@ -686,27 +696,31 @@ ggplot(predict_data_lm, aes(x = category, y = Predicted_Price_Change, color = Pr
   )
 
 ```
-[fig-lmtwo], like [fig-lmone], uses predictions from Linear Model 2. However, while [fig-lmone] shows predicted price changes across months, [fig-lmtwo] presents their distribution across food categories. Similar to the monthly distribution, there is no significant difference between strawberry and banana-flavored products across categories, except for flavored tea. Banana-flavored tea shows a downward price trend with fewer products compared to strawberry-flavored tea, which exhibits rising prices. For beverage, fruit, and solid snack categories, both flavors demonstrate increasing price trends, while yogurt prices remain largely stable.
+
+[@fig-lmtwo], like [fig-lmone], uses predictions from Linear Model 2. However, while [@fig-lmone] shows predicted price changes across months, [@fig-lmtwo] present their distribution across food categories. Similar to the monthly distribution, there is no significant difference between strawberry and banana-flavored products across categories, except for flavored tea. Banana-flavored tea shows a downward price trend with fewer products compared to strawberry-flavored tea, which exhibits rising prices. For beverage, fruit, and solid snack categories, both flavors demonstrate increasing price trends, while yogurt prices remain largely stable.
 
 ```{r}
 #| label: fig-rfone
-#| fig-cap: Distribution of Random Forest Model Predicted Monthly Price Changes for Banana and Strawberry Products by Month
+#| fig-cap: "Distribution of Random Forest Model Predicted Monthly Price Changes for Banana and Strawberry Products by Month"
 #| echo: false
 #| eval: true
 #| warning: false
 #| message: false
 
-predict_data_rf <- model_data %>%
-  mutate(predicted_price_change = predict(model_rf, newdata = model_data))
 
 # Create the plot for price distribution by month
-ggplot(predict_data_rf, aes(x = as.factor(month), y = predicted_price_change, color = predicted_price_change)) +
+ggplot(tree_data, aes(x = as.factor(month), y = PredictedPriceChange, color = PredictedPriceChange)) +
   geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
   geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
-  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  scale_color_gradient(
+    low = "blue", 
+    high = "red", 
+    name = "Predicted Average Price Change"  # Set the legend title
+  ) +
   labs(
     x = "Month",
-    y = "Average Price") +
+    y = "Predicted Average Price Change"
+  ) +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
@@ -715,33 +729,32 @@ ggplot(predict_data_rf, aes(x = as.factor(month), y = predicted_price_change, co
     strip.text = element_text(size = 12)
   )
 
-
 ```
 
-To address the limitations of the linear model, we also generated predictions using the random forest model, as shown in [@fig-rfone] and [@fig-rftwo].
+Predictions generated by the random forest model were shown in [@fig-rfone] and [@fig-rftwo].
 
 [@fig-rfone] illustrates the predicted price changes for banana and strawberry-flavored products across months. While the differences are not pronounced, there are notable variations in their distributions. In July, August, and September, prices for both flavors decline, with banana-flavored products experiencing a steeper drop. By October, prices for both flavors rise, with a sharper increase for banana-flavored products. In November, price increases continue but at a slower pace, with some products, particularly banana-flavored ones, showing significant price reductions. Overall, the price changes largely fall within a range of ±0.1 units.
 
 ```{r}
 #| label: fig-rftwo
-#| fig-cap: This figure shows the distribution of monthly price changes for banana and strawberry products. A higher concentration around zero indicates more stable prices, while wider distributions suggest greater variability.
+#| fig-cap: "Distribution of Random Forest Model Predicted Monthly Price Changes for Banana and Strawberry Products by Category"
 #| echo: false
 #| eval: true
 #| warning: false
 #| message: false
 
-predict_data_rf <- model_data %>%
-  mutate(predicted_price_change = predict(model_rf, newdata = model_data))
-
 # Create the plot for price distribution by month
-ggplot(predict_data_rf, aes(x = category, y = predicted_price_change, color = predicted_price_change)) +
+ggplot(tree_data, aes(x = category, y = PredictedPriceChange, color = PredictedPriceChange)) +
   geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
   geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
-  scale_color_gradient(low = "blue", high = "red") +  # Color gradient based on the price
+  scale_color_gradient(
+    low = "blue", 
+    high = "red", 
+    name = "Predicted Average Price Change"  # Set the legend title
+  ) +
   labs(
     x = "Month",
-    y = "Average Price",
-    title = "Average Price Distribution by Month"
+    y = "Predicted Average Price Change"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
@@ -755,36 +768,35 @@ ggplot(predict_data_rf, aes(x = category, y = predicted_price_change, color = pr
 
 ```
 
-[@fig-rftwo] presents the predicted price changes for banana and strawberry-flavored products across food categories. Notable differences emerge in their distribution across categories. Prices for beverages, fruit, and solid snacks show an overall increase, while yogurt remains relatively stable. For flavored tea, banana-flavored products exhibit minimal price changes, whereas strawberry-flavored products see a noticeable price increase. Interestingly, some banana-flavored products show significantly larger price increases compared to their strawberry counterparts, resulting in a more dispersed price distribution for banana-flavored items.
+[@fig-rftwo] presents the predicted price changes for banana and strawberry-flavored products across food categories. In both of the flavors, prices for beverages, fruit, and solid snacks show an overall increase, while yogurt remains relatively stable. For flavored tea, banana-flavored products exhibit minimal price changes, whereas strawberry-flavored products see a noticeable price increase. 
 
 # Discussion {#sec-discussion}
 
 ## Summery of Findings
 
-In our study, we analyzed the price changes of banana and strawberry-flavored products using both linear and Random Forest models. The linear model showed an average price change of 0.0091 for banana-flavored products and 0.0100 for strawberry-flavored products. The Random Forest model yielded similar results, with banana-flavored products averaging a price change of 0.0085, slightly lower than strawberry-flavored products at 0.0103. Both models indicated small price increases from July to November, with some differences in the distribution of price changes. July remained stable, while August and September saw slight declines. October and November experienced small increases, with the largest rise in October. Overall, price changes for both flavors stayed within ±0.1 units. Across food categories, beverages, fruits, and solid snacks showed price increases, while yogurt remained stable. Only in the flavored tea category did we observe a difference: banana-flavored products decreased, while strawberry-flavored ones increased. Overall, both models showed similar trends, with banana and strawberry products experiencing slight price increases, and strawberry-flavored products seeing a slightly higher increase.
+In our study, we analyzed price changes for banana and strawberry-flavored products using linear and Random Forest models. The linear model showed average price changes of 0.0091 dollars for banana-flavored products and 0.0100 dollars for strawberry-flavored ones. Similarly, the Random Forest model reported 0.0085 for bananas and 0.0103 for strawberries. Both models revealed small price increases from July to November, with stable prices in July, slight declines in August and September, and increases in October and November, peaking in October. Price changes for both flavors stayed within ±0.1 units. Across food categories, beverages, fruits, and solid snacks showed price increases, yogurt remained stable, and flavored tea showed divergent trends: banana-flavored tea prices decreased, while strawberry-flavored tea prices increased. Overall, both models indicated similar trends, with strawberry-flavored products experiencing slightly higher price increases than banana-flavored ones.
 
+This result was unexpected, as we initially assumed that bananas would be more popular in winter and strawberries in summer, and hence banana products would increase more in price. However, the model predicts a greater price increase for strawberry-flavored products compared to banana-flavored ones. This suggests that while seasonal fruits are more popular during their peak seasons, their flavored products may not follow the same pattern. For instance, in winter, consumers might prefer strawberry-flavored products to recall the taste of strawberries in summer, rather than choosing banana-flavored ones.
 
-This result surprised us, as our initial hypothesis assumed bananas to be more popular in winter and strawberries in summer. However, the model predicts that the price of strawberry-flavored products will increase more than that of banana-flavored ones. This suggests that while seasonal fruits may be more popular during their peak seasons, it does not necessarily mean their flavored products are less favored in off-seasons. For example, during winter, people might be even more inclined to purchase strawberry-flavored products to enjoy the taste of strawberries, rather than opting for banana-flavored ones.
-
-Among all predictors, vendor and month are the most influential, while food category and average rainfall have relatively limited impact. Interestingly, the interaction between month and food category is the second most important predictor after month. We believe the dominance of vendor is due to the unique sales strategies each vendor employs, such as deciding which products to sell and how to adjust prices across different periods and categories. This makes vendor the most significant contributor to price changes, as vendors directly control pricing. The next most important predictors are month and its interaction with category, which reflects seasonal variations in consumer behavior and preferences for different food types. The interaction term provides deeper insights into these temporal consumption patterns. Although food category and average rainfall contribute less, both have importance values exceeding 20, demonstrating their limited but indispensable role in the model.
+Among all predictors, vendor and month are the most influential, while food category and average rainfall have less impact. The interaction between month and food category ranks after month. The dominance of vendors is due to the sales strategies each vendor employs, such as deciding which products to sell and how to adjust prices across different periods and categories. This makes vendors the most important contributor to price changes, as vendors directly control pricing. The next most important predictors are month and its interaction with category, which reflects seasonal variations in consumer behavior and preferences for different food types. The interaction term provides deeper insights into these temporal consumption patterns. Although food category and average rainfall contribute less, both have importance values exceeding 20, demonstrating their limited but indispensable role in the model.
 
 ## Limitation
 
-The model's subpar performance highlights a major limitation of this study: the quality of the original dataset, which significantly impacted the model's accuracy.
+The model's limited performance underscores a key challenge in this study: the quality of the original dataset, which affected its accuracy.
 
-First, while data collection from vendor websites began on February 28, 2024, as noted by the dataset's creator, only a small number of products were captured until July 10, when large-scale scraping commenced. Unfortunately, strawberry- and banana-flavored products were not included in the earlier data. The earliest recorded prices for these products appear on June 11, leaving nearly four months of missing data. This substantial gap reduced both the dataset's size and its temporal coverage, making predictions more challenging.
+First, while data collection from vendor websites began on February 28, 2024, as noted by the dataset's creator, only a small number of products were recorded until large-scale scraping began on July 10. Strawberry- and banana-flavored products were absent from the early data, with their earliest prices recorded on June 11. This nearly four-month gap reduced the dataset's size and temporal coverage, complicating predictions.
 
-Second, the dataset's diversity in product categories and inconsistent labeling across vendors resulted in significant data heterogeneity. For example, units of measurement were not standardized. Ideally, predictions should have been based on consistent units, such as price per 100g of bananas or per 100ml of strawberry beverages. However, some products were only listed with unit prices, while others had inconsistent units—for instance, yogurt prices were listed per 100g, per 100ml, or per box. This forced us to rely on unit prices, a less precise approach. For example, a 300ml beverage and a 2L beverage may have vastly different prices, but their per-100ml prices could be similar.
+Second, the dataset's variability in product categories and inconsistent labeling across vendors led to data heterogeneity. For instance, units of measurement were not standardized. Ideally, predictions should have used consistent units, such as price per 100g of bananas or 100ml of strawberry beverages. However, some products only had unit prices, while others used different units—for example, yogurt was priced per 100g, per 100ml, or box. This forced us to rely on less precise unit prices. A 300ml beverage and a 2L beverage, for instance, might have similar per-100ml prices but very different in unit price.
 
-Third, the dataset had an uneven distribution of products between the two flavors. Strawberry-flavored products, likely due to their broader popularity or insufficient representation of banana-flavored products in the dataset, were far more prevalent. This resulted in denser data distributions for strawberry products compared to bananas, potentially introducing bias in banana product predictions. In some categories, such as flavored tea, the number of banana-flavored products was particularly sparse, further exacerbating prediction biases.
+Third, the dataset had an uneven distribution of products between the two flavors. Strawberry-flavored products were more prevalent, likely due to their broader popularity or the limited representation of banana-flavored products. This led to denser data distributions for strawberry products, which could introduce bias in predictions for banana products. In certain categories, such as flavored tea, the scarcity of banana-flavored products was especially pronounced, further worsening prediction biases.
 
-Lastly, our assumptions may not align with real-world dynamics. We hypothesized that seasonal fruits would see higher demand and prices during their peak seasons, with lower off-season demand. However, this may only hold for the fruits themselves and not their flavored products, which could be influenced by more significant factors than seasonality. Off-season sales, for instance, might not lead to price decreases but rather increases, as higher prices might offset lower demand. Overall, food price changes are influenced by numerous factors, making this a highly complex and nuanced subject. We underestimated the challenges of modeling price dynamics accurately.
+Lastly, our assumptions may not fully align with real-world dynamics. We expected seasonal fruits to have higher demand and prices during their peak seasons, with lower demand off-season. However, this may apply more to the fruits themselves than seasonal fruit-flavored products, which could be influenced by other factors beyond seasonality. For instance, off-season sales might not result in price decreases but could lead to price increases as vendors adjust for lower demand. In conclusion, food price changes are influenced by multiple factors, making this a complex issue. We underestimated the challenges of modeling price dynamics accurately.
 
 ## Future Study
 
-Future research should address the limitations identified in this study to enhance the accuracy of modeling price changes for seasonal fruit-flavored products. First, improved data collection methods are essential. Future efforts should ensure consistent and comprehensive data coverage for all target product categories and flavors from the initial scraping period, ideally spanning 2–3 years to improve reliability. Second, standardizing product measurement units is crucial for enhancing prediction accuracy. Converting prices to uniform units, such as per 100 grams or per 100 milliliters, would reduce data heterogeneity and enable more meaningful comparisons. Efforts should also be made to unify units within the same food category and to resolve inconsistencies through manual data supplementation or improved web-scraping methods. For example, fruit prices could be collected uniformly per 100 grams, while beverages could be standardized per 100 milliliters. Products lacking detailed unit information, such as “boxed fruits” or “a case of strawberry juice,” could be supplemented with manual research or advanced scraping techniques. Lastly, incorporating additional predictive factors such as regional variations, promotional activities, or consumer preferences could provide deeper insights into the drivers of price changes. Leveraging these improvements, future studies could develop more robust models to better understand and forecast the dynamics of seasonal fruit-flavored product prices.
+Future research should address the limitations of this study to improve the accuracy of price change models for seasonal fruit-flavored products. First, data collection methods need to be improved. Future efforts should ensure consistent and comprehensive data coverage for all target product categories and flavors from the start, ideally spanning 2–3 years to enhance reliability. Second, standardizing product measurement units is essential. Converting prices to uniform units, such as per 100 grams or 100 milliliters, would reduce data heterogeneity and enable better comparisons. Efforts should also focus on unifying units within each food category, resolving inconsistencies through manual data supplementation, or improved web-scraping techniques. For example, fruit prices could be standardized per 100 grams, while beverages could be per 100 milliliters. Products without detailed unit information, like “boxed fruits” or “cases of strawberry juice,” could be supplemented using manual research or advanced scraping methods. Finally, incorporating additional factors such as regional variations and promotional activities could provide a clearer understanding of the drivers behind price changes.  We can also collect consumers' consumption preferences for seasonal fruits and their flavored products through questionnaires. With these improvements, future studies could develop more robust models to better forecast the dynamics of seasonal fruit-flavored product prices.
 
-To build on the existing work with linear models and Random Forest, future studies could explore alternative machine learning algorithms that might better capture the complexities of flavored product price dynamics. Gradient Boosting Machines (GBMs), such as XGBoost or LightGBM, could be particularly effective, as they excel in handling structured data and capturing non-linear relationships while minimizing overfitting. Similarly, Support Vector Machines (SVMs) could be applied, especially if the focus shifts to classification tasks, such as identifying the likelihood of price increases or decreases based on features like flavor and category.
+To build on the existing work with linear models and Random Forest, future studies could explore alternative machine learning algorithms that better capture the complexities of flavored product price dynamics. Gradient Boosting Machines (GBMs), such as XGBoost or LightGBM, could be particularly effective, as they excel in handling structured data, capturing non-linear relationships, and minimizing overfitting. Additionally, Support Vector Machines (SVMs) could be applied, particularly for classification tasks, such as predicting the likelihood of price increases or decreases based on features like flavor and category.
 
 
 \newpage
@@ -795,62 +807,66 @@ To build on the existing work with linear models and Random Forest, future studi
 
 We obtained the raw data from Jacob Filipp's Project Hammer website, available at: [https://jacobfilipp.com/hammer/](https://jacobfilipp.com/hammer/). To access the data, scroll down the page until you see the heading "Get Full Data in 2 CSV Files". Click on the link labeled "Zipped CSVs with full price data" to download the raw data. After extracting the files, you will obtain two CSV files: hammer-4-product.csv and hammer-4-raw.csv. Next, place these two files in the project's data/01-raw_data folder, and you’ll be able to run the code without issues.
 
-(Note: When referencing file names and paths in R, use proper syntax with quotation marks, e.g., data/01-raw_data/hammer-4-product.csv.)
-
 ## Data Cleaning
 
-The data cleaning process began with filtering the raw datasets, \texttt{hammer-4-raw.csv} and \texttt{hammer-4-product.csv}, to isolate and preprocess information about banana- and strawberry-related products. First, I removed rows where both \texttt{banana} and \texttt{strawberry} appeared in the \texttt{product\_name} or \texttt{concatted} columns to avoid mixed-category products. Subsequently, I filtered rows containing \texttt{banana} or \texttt{strawberry} in the \texttt{product\_name} column, creating separate datasets for banana (\texttt{product\_data\_banana}) and strawberry (\texttt{product\_data\_strawberry}) products. 
+In the data cleaning process for the banana and strawberry product datasets, we first removed any rows in the product_name or concatted columns where both "banana" and "strawberry" appeared together, to avoid mixed category products. After filtering out these mixed-category rows, the dataset was split into two separate datasets: one for banana-related products and the other for strawberry-related products. Each dataset was further categorized based on keywords found in the product_name and concatted columns, such as "beverages," "yogurt," "flavored tea," and "solid snacks," or defaulted to "fruit." We first categorized products containing the keyword "yogurt" into the yogurt category, then those containing the keyword "tea" into the flavored tea category. The flavored tea category includes both flavored tea beverages and solid tea bags, which cannot be distinguished by units alone. Next, we filtered for products with keywords like "drink," "lemonade," "juice," "sparkling," or "beverage" and categorized them as beverages. Products with the "organic" keyword were categorized as fruit. For the remaining products, we classified those with units in ml or L as beverages and those with units in kg or g as solid snacks. Any remaining products were classified as fruit. Although a few products were misclassified during this process, the overall categorization was accurate. We then removed unnecessary columns such as concatted, detail_url, sku, and upc to simplify the dataset.
 
-Next, I categorized products in each dataset based on keywords in the \texttt{product\_name} and \texttt{concatted} columns, assigning them to categories such as \texttt{Beverage}, \texttt{Yogurt}, \texttt{Flavored Tea}, \texttt{Solid Snacks}, or defaulting to \texttt{Fruit}. Unnecessary columns like \texttt{concatted}, \texttt{units}, \texttt{brand}, \texttt{detail\_url}, \texttt{sku}, and \texttt{upc} were then removed to streamline the data.
+Next, we filtered the original product dataset to retain only the products found in the cleaned banana and strawberry datasets. We removed rows with missing price_per_unit values and converted the nowtime column into the correct date format. Other unnecessary columns, such as old_price and other non-essential data, were also removed. Then, the data was sorted by nowtime for each product, and missing dates were handled by generating a complete date sequence for each product_id. Since web scraping can sometimes result in missing or duplicated data, missing current_price values were filled in with the latest available price for each product.
 
-For the \texttt{raw\_data}, only rows with \texttt{product\_id}s present in the cleaned \texttt{product\_data\_banana} or \texttt{product\_data\_strawberry} datasets were retained. Rows with missing \texttt{price\_per\_unit} were removed, and the \texttt{nowtime} column was converted to a \texttt{Date} format. Additional columns, including \texttt{old\_price}, \texttt{price\_per\_unit}, and \texttt{other}, were removed. To handle missing dates, a sequence of dates for each \texttt{product\_id} was generated, and missing \texttt{current\_price} values were filled using the last known price.
-
-Monthly average prices for each \texttt{product\_id} were calculated from June to November, and the results were merged back into \texttt{product\_data\_banana} and \texttt{product\_data\_strawberry}. Rows without any average price values across these months were removed from both datasets. Finally, the cleaned banana and strawberry datasets were saved as Parquet files in the \texttt{data/02-analysis\_data/} directory for further analysis.
-
+For each product, we calculated the average monthly price from June to November and merged this average price back into the banana and strawberry datasets. Rows without an average price during these months were then deleted. The cleaned banana and strawberry datasets were saved as Parquet files for further analysis. This systematic approach ensured proper data filtering, handled missing values and prepared the final datasets for analysis.
 
 # Appendix b. {-}
 
 ## Idealized Methodology for Analyzing Seasonal Price Changes of Fruit-Flavored Products
 
-We aim to develop a comprehensive methodology for understanding price fluctuations of seasonal fruit-flavored products during their in-season and off-season periods. By combining consumer surveys and observational retail data, we will identify key trends in purchasing behavior and retailer pricing strategies. With a $100,000 budget, we employ stratified sampling, incentivized recruitment, and rigorous data validation to ensure robust and actionable insights. Results will be enriched through the integration of secondary data sources, including retail sales reports and online marketplace trends.
+We aim to understand price fluctuations of seasonal fruit-flavored products during their in-season and off-season periods. By combining consumer surveys and retail data, we will identify trends in purchasing behavior and retailer pricing. With a $200,000 budget, we will use stratified sampling, incentivized recruitment, and strict data validation to ensure reliable results. The findings will be further enhanced with secondary data, such as retail sales reports and online marketplace trends.
 
 ## Budget Allocation
 
-Funding allocations are designed to ensure thorough data collection, effective sampling, and comprehensive analysis within a $100,000 budget. The proposed budget breakdown is as follows:
+We assume we will have a budget of $200,000, which will be used for data collection, effective sampling, and comprehensive analysis. The proposed budget breakdown is as follows:
 
-Survey platform costs	$15,000	Subscription fees for Qualtrics or Google Forms for dynamic and customizable surveys.
+The survey platform costs	$30,000	
+Subscription fees for Qualtrics or Google Forms for dynamic and customizable surveys.
 
-Respondent incentives	$20,000	Gift cards ($10 each) to encourage participation among 2,000 respondents.
+Respondent incentives: $40,000 
+Gift cards to encourage participation among 2,000 respondents. 
 
-Recruitment and staffing	$30,000	Staffing costs for survey distribution and observational data collection.
+Recruitment and staffing: $60,000 
+Staffing costs for survey distribution and observational data collection.
 
-Observational data collection	$20,000	Travel and logistical costs for monitoring prices across various retail locations.
+Observational data collection: $40,000
+Travel and logistical costs for monitoring prices across various retail locations.
 
-Data analysis tools	$10,000	Statistical software licenses and tools for data cleaning and analysis.
+Data analysis tools: $20,000
+Statistical software licenses and tools for data cleaning and analysis.
 
-Marketing and promotion	$3,000	Social media campaigns to boost survey reach.
-Contingency fund	$2,000	Reserved for unforeseen expenses.
+Marketing and promotion: $6,000
+Social media campaigns to boost survey reach.
+
+Contingency fund:	$4,000
+Reserved for unforeseen expenses.
 
 
 ## Sampling Approach
 
-To ensure representation across demographics and consumer behavior, a stratified sampling method will be employed. The target population consists of regular consumers of fruit-flavored snacks, beverages, and desserts, focusing on age groups, income levels, geographic regions, and purchasing habits such as the frequency of buying seasonal fruit-flavored products. A sample size of 2,000 respondents has been selected, providing statistical robustness with a confidence level of 95% and a margin of error of ±2%. Recruitment efforts will primarily leverage online platforms, social media, and community networks to identify key focus groups, including frequent buyers who purchase products at least once a month, seasonal buyers who favor in-season purchases, and price-sensitive buyers whose decisions heavily depend on pricing.
+We will use stratified sampling to ensure representation across demographics and consumer behavior. The target population includes regular consumers of fruit-flavored snacks, drinks, and desserts, focusing on factors like age, income, location, and purchasing habits, such as how often they buy seasonal fruit-flavored products. We will survey 2,000 respondents, providing a 95% confidence level and a ±2% margin of error. Recruitment will use online platforms, social media, and community networks, targeting frequent buyers (at least once a month), seasonal buyers, and price-sensitive shoppers.
 
-Observational data collection will complement survey responses, focusing on retail locations, products, and time periods. A stratified sample of 30 retailers, encompassing supermarkets, convenience stores, and online marketplaces across urban, suburban, and rural areas, will be included. Observational metrics will focus on key fruit-flavored categories like strawberry, banana, and mixed-fruit products to capture price patterns. Data will be gathered over a one-year period to include full in-season and off-season cycles, offering a comprehensive view of pricing and availability trends.
+We will also collect observational data from 30 retailers, including supermarkets, convenience stores, and online marketplaces, across urban, suburban, and rural areas. We will track fruit-flavored products like strawberry, banana, and mixed-fruit items over a year, covering both in-season and off-season periods to capture pricing and availability trends.
 
 ## Respondent Recruitment and Data Validation
 
-To obtain a representative and diverse dataset, a multi-mode recruitment strategy will be used. Online surveys distributed via platforms like Google Forms or Qualtrics will target food enthusiasts and frequent grocery shoppers through social media and email lists. We made a questionnnair, avaliable in following link: [https://forms.gle/gGy5CFKF33MCRm5ZA](https://forms.gle/gGy5CFKF33MCRm5ZA) In-store recruitment will involve flyers and QR codes displayed in participating retail stores, directly engaging shoppers. To encourage participation and ensure a high response rate, each respondent will be offered a $10 digital gift card upon survey completion. Data validation will include automated checks within the survey platform to flag incomplete or inconsistent responses and a manual review of open-ended answers to identify irrelevant or duplicate entries.
+To gather a representative and diverse dataset, we will use a multi-mode recruitment strategy. Online surveys will be distributed via platforms like Google Forms or Qualtrics, targeting food enthusiasts and regular grocery shoppers through social media and email lists. A questionnaire is available at the following link: [https://forms.gle/gGy5CFKF33MCRm5ZA](https://forms.gle/gGy5CFKF33MCRm5ZA). In-store recruitment will involve flyers and QR codes in participating retail stores to directly engage shoppers. To boost participation, each respondent will receive a $20 digital gift card upon completing the survey. Data validation will include automated checks for incomplete or inconsistent responses, and manual review of open-ended answers to identify irrelevant or duplicate entries.
 
-Observational data will provide real-world insights into price trends and product availability. Weekly price monitoring will record the prices of targeted products, while stock availability will be tracked to identify stockouts or limited supply during off-seasons. Observers will also document promotional campaigns and discounts to account for external influences on pricing.
+Observational data will provide real-world insights into price trends and product availability. Weekly price monitoring will track the prices of targeted products, while stock availability will be checked to identify stockouts or limited supply during off-seasons. Observers will also record promotional campaigns and discounts to account for pricing influences.
+
 
 ## Analysis and Modeling
 
-Survey and observational data will be integrated and analyzed using advanced statistical methods to uncover trends and insights. Weighted analysis will ensure that survey responses reflect the demographic composition of the target population. Observational data will be used for trend analysis, tracking seasonal price variations and comparing them across geographic regions. Predictive modeling, including regression analysis, will identify key factors influencing consumer willingness to pay for seasonal fruit-flavored products during in-season and off-season periods. Secondary data from retail sales reports and online platforms like Amazon and Walmart will further enrich the analysis, providing a comprehensive market perspective.
+Survey and observational data will be combined and analyzed using statistical methods to identify trends. Weighted analysis will adjust survey responses to reflect the demographics of the target population. Observational data will track seasonal price changes and compare them across different regions. Predictive modeling, including regression analysis, will identify factors that affect consumer willingness to pay for seasonal fruit-flavored products during in-season and off-season periods. Secondary data from retail sales reports and online platforms like Amazon and Walmart will be incorporated to enhance the analysis and provide a broader market view.
 
 ## Expected Outcomes
 
-The study aims to generate actionable insights into consumer behavior and market trends. Consumer insights will highlight differences in purchasing behavior and price sensitivity during in-season and off-season periods, as well as the factors that influence willingness to pay for seasonal fruit-flavored products. Market trends will reveal seasonal pricing patterns, the impact of regional and demographic factors, and strategies employed by retailers to optimize pricing and promotions during off-seasons. These findings will offer valuable implications for businesses and policymakers seeking to align their strategies with consumer preferences.
+The study aims to collect and model consumer behavior and market trends. It will identify differences in purchasing behavior and price sensitivity between in-season and off-season periods, as well as factors affecting willingness to pay for seasonal fruit-flavored products. Market trends will reveal seasonal pricing patterns, regional and demographic influences, and retailer strategies for pricing and promotions during off-seasons. These findings will help businesses and policymakers align their strategies with consumer preferences.
 
 \newpage
 

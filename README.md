@@ -9,7 +9,7 @@ This study develops a model to predict price changes for seasonal fruit-flavored
 The repo is structured as:
 
 -   `data/00-simulated_data` contains the simulated price change data for banana-flavored and strawberry-flavored products from June 2024 to November 2024.
--   `data/01-raw_data` contains the raw data, which obtained from "https://jacobfilipp.com/hammer/" and openDataToronto.
+-   `data/01-raw_data` contains the raw data, which obtained from "https://jacobfilipp.com/hammer/" and opendataToronto.
 -   `data/02-analysis_data` contains the cleaned dataset that was constructed.
 -   `model` contains a series of fitted models. 
 -   `other` contains relevant details about LLM chat histories, datasheet, and sketches for the figures demonstrated in the paper.
@@ -22,5 +22,5 @@ We obtained the raw data from Jacob Filipp's Project Hammer website, available a
 
 ## Statement on LLM usage
 
-Aspects of the code and introduction were written with the help of Chatgpt4.0, the entire chat history is available at other/llm_usage/usage.txt.
+Aspects of the code and data section in paper were written with the help of Chatgpt4.0, the entire chat history is available at other/llm_usage/usage.txt.
 

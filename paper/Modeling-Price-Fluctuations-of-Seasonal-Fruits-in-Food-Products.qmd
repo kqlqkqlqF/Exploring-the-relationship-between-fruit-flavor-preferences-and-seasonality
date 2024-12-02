@@ -108,7 +108,7 @@ ggplot(model_data, aes(x = monthly_avg_price)) +
   ) +
   geom_density(color = "black", fill = "salmon", alpha = 0.6) +
   labs(
-    x = "Average Price",
+    x = "Average Price (dollar)",
     y = "Density"
   ) +
   theme_minimal() +
@@ -141,12 +141,12 @@ ggplot(model_data, aes(x = as.factor(month), y = price_change, color = price_cha
   ) +
   labs(
     x = "Month",
-    y = "Average Price Change"
+    y = "Average Price Change (dollar)"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
-    axis.title = element_text(size = 14),
+    axis.title = element_text(size = 12),
     axis.text = element_text(size = 12),
     strip.text = element_text(size = 12)
   )
@@ -217,13 +217,12 @@ ggplot(rain_data, aes(x = as.factor(month), y = avg_rainfall)) +
   geom_bar(stat = "identity", fill = "blue", color = "black", alpha = 0.7) + 
   labs(
     x = "Month",
-    y = "Average Rainfall (mm)",
-    title = "Average Rainfall per Month"
+    y = "Average Rainfall (mm)"
   ) +
   theme_minimal() +
   theme(
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12)
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
   )
 
 
@@ -252,14 +251,14 @@ ggplot(model_data, aes(x = category, y = monthly_avg_price, color = monthly_avg_
   ) +
   labs(
     x = "Month",
-    y = "Average Price"
+    y = "Average Price (dollar)"
   ) +
   theme_minimal() +
   theme(
     axis.text.x = element_text(angle = 45, hjust = 1),
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12)
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    strip.text = element_text(size = 10)
   )
 
 
@@ -288,14 +287,14 @@ ggplot(model_data, aes(x = as.factor(month), y = monthly_avg_price, color = mont
   ) +
   labs(
     x = "Month",
-    y = "Average Price"
+    y = "Average Price (dollar)"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12)
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    strip.text = element_text(size = 10)
   )
 
 ```
@@ -334,7 +333,7 @@ We included several predictors in the model, such as Vendor, Food Category, Aver
 
 ## Model Set-up
 
-Our goal is to model the price changes of strawberry and banana-flavored products using Vendor, Food Category, Average Rainfall, and Month as predictors. The model includes interaction terms to capture how combinations of these factors influence price changes, offering insights into the key factors that drive the pricing of seasonal fruit-flavored products.
+Our goal is to model the price changes of strawberry and banana-flavored products using Vendor, Food Category, Average Rainfall, and Month as predictors. The model includes interaction terms to capture how combinations of these factors influence price changes, trying to find the key factors that influence the pricing of seasonal fruit-flavored products.
 
 \
 \begin{align*}
@@ -364,7 +363,7 @@ This regression model predicts price changes for strawberry and banana-flavored 
 
 To capture more complex relationships, the model includes two-way interactions, such as vendor and category, category and month, and month and average rainfall. These interactions help explain how factors influence each other. For instance, some vendors may focus on specific products, like beverages, while the category-month interaction reflects seasonal demand shifts, such as reduced beverage demand in Canada’s colder months. The rainfall-month interaction shows their direct relationship, with June being the wettest month and November the driest in Canada.
 
-An error term is included to account for unexplained variability, improving the model's predictive accuracy. By considering both individual and interactive effects, the model provides a comprehensive approach to forecasting price changes for these products.
+An error term is included to account for unexplained variability, improving the model's predictive accuracy. By considering both individual and interactive effects, the model provides an approach to forecasting price changes for these products.
 
 ## Model Justification
 
@@ -584,12 +583,24 @@ flavor_summary <- flavor_data %>%
     Total_Products = n()
   )
 
-# Step 4: Present the summary using kable
+# First part
 flavor_summary %>%
+  select(flavor, Avg_Price_Change, Median_Price_Change, Min_Price_Change) %>%
   kable(
-    col.names = c("Flavor", "Avg Change", "Median Change", "Min Change", "Max Change", "SD of Change", "Sample Size"),
+    col.names = c("Flavor", "Avg Change", "Median Change", "Min Change"),
     digits = 4,
-    booktabs = TRUE) %>%
+    booktabs = TRUE
+  ) %>%
+  kable_styling(latex_options = c("striped", "scale_down"))
+
+# Second part
+flavor_summary %>%
+  select(flavor, Max_Price_Change, SD_Price_Change, Total_Products) %>%
+  kable(
+    col.names = c("Flavor", "Max Change", "SD of Change", "Sample Size"),
+    digits = 4,
+    booktabs = TRUE
+  ) %>%
   kable_styling(latex_options = c("striped", "scale_down"))
 
 ```
@@ -640,25 +651,26 @@ Banana-flavored products have an average price change of 0.0085, while strawberr
 #| warning: false
 #| message: false
 
-# Create the plot for price distribution by month
 ggplot(predict_data_lm, aes(x = as.factor(month), y = Predicted_Price_Change, color = Predicted_Price_Change)) +
   geom_violin(fill = "blue", alpha = 0.4) +  # Use violin plot to show the distribution of the average prices
   geom_jitter(width = 0.1, alpha = 0.7) +  # Scatter plot for individual data points, jittered for visibility
-   scale_color_gradient(
+  scale_color_gradient(
     low = "blue", 
     high = "red", 
-    name = "Predicted Average Price Change"  # Set the legend title
+    name = "Predicted\nAverage\nPrice Change"  # Add a newline character for wrapping
   ) +
   labs(
     x = "Month",
-    y = "Predicted Average Price Change"
+    y = "Predicted Average Price Change (dollar)"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12)
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    strip.text = element_text(size = 10),
+    legend.text = element_text(size = 8),  # Adjust legend text size
+    legend.title = element_text(size = 10)  # Adjust legend title size
   ) 
 
 ```
@@ -680,19 +692,21 @@ ggplot(predict_data_lm, aes(x = category, y = Predicted_Price_Change, color = Pr
   scale_color_gradient(
     low = "blue", 
     high = "red", 
-    name = "Predicted Average Price Change"  # Set the legend title
+    name = "Predicted\nAverage\nPrice Change"  # Set the legend title
   ) +
   labs(
     x = "Month",
-    y = "Predicted Average Price Change"
+    y = "Predicted Average Price Change (dollar)"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12),
-    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    strip.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(size = 8),  # Adjust legend text size
+    legend.title = element_text(size = 10)
   )
 
 ```
@@ -715,18 +729,20 @@ ggplot(tree_data, aes(x = as.factor(month), y = PredictedPriceChange, color = Pr
   scale_color_gradient(
     low = "blue", 
     high = "red", 
-    name = "Predicted Average Price Change"  # Set the legend title
+    name = "Predicted\nAverage\nPrice Change"  # Set the legend title
   ) +
   labs(
     x = "Month",
-    y = "Predicted Average Price Change"
+    y = "Predicted Average Price Change (dollar)"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12)
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    strip.text = element_text(size = 10),
+    legend.text = element_text(size = 8),  # Adjust legend text size
+    legend.title = element_text(size = 10)
   )
 
 ```
@@ -750,19 +766,21 @@ ggplot(tree_data, aes(x = category, y = PredictedPriceChange, color = PredictedP
   scale_color_gradient(
     low = "blue", 
     high = "red", 
-    name = "Predicted Average Price Change"  # Set the legend title
+    name = "Predicted\nAverage\nPrice Change"  # Set the legend title
   ) +
   labs(
     x = "Month",
-    y = "Predicted Average Price Change"
+    y = "Predicted Average Price Change (dollar)"
   ) +
   theme_minimal() +
   facet_wrap(~flavor) +
   theme(
-    axis.title = element_text(size = 14),
-    axis.text = element_text(size = 12),
-    strip.text = element_text(size = 12),
-    axis.text.x = element_text(angle = 45, hjust = 1)  # Rotate x-axis labels
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10),
+    strip.text = element_text(size = 10),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    legend.text = element_text(size = 8),  # Adjust legend text size
+    legend.title = element_text(size = 10)
   )
 
 
@@ -778,7 +796,7 @@ In our study, we analyzed price changes for banana and strawberry-flavored produ
 
 This result was unexpected, as we initially assumed that bananas would be more popular in winter and strawberries in summer, and hence banana products would increase more in price. However, the model predicts a greater price increase for strawberry-flavored products compared to banana-flavored ones. This suggests that while seasonal fruits are more popular during their peak seasons, their flavored products may not follow the same pattern. For instance, in winter, consumers might prefer strawberry-flavored products to recall the taste of strawberries in summer, rather than choosing banana-flavored ones.
 
-Among all predictors, vendor and month are the most influential, while food category and average rainfall have less impact. The interaction between month and food category ranks after month. The dominance of vendors is due to the sales strategies each vendor employs, such as deciding which products to sell and how to adjust prices across different periods and categories. This makes vendors the most important contributor to price changes, as vendors directly control pricing. The next most important predictors are month and its interaction with category, which reflects seasonal variations in consumer behavior and preferences for different food types. The interaction term provides deeper insights into these temporal consumption patterns. Although food category and average rainfall contribute less, both have importance values exceeding 20, demonstrating their limited but indispensable role in the model.
+Among all predictors, vendor and month are the most influential, while food category and average rainfall have less impact. The interaction between month and food category ranks after month. The dominance of vendors is due to the sales strategies each vendor employs, such as deciding which products to sell and how to adjust prices across different periods and categories. This makes vendors the most important contributor to price changes, as vendors directly control pricing. The next most important predictors are month and its interaction with category, which reflects seasonal variations in consumer behavior and preferences for different food types. Although food category and average rainfall contribute less, both have importance values exceeding 20, demonstrating their limited but indispensable role in the model.
 
 ## Limitation
 
@@ -794,7 +812,7 @@ Lastly, our assumptions may not fully align with real-world dynamics. We expecte
 
 ## Future Study
 
-Future research should address the limitations of this study to improve the accuracy of price change models for seasonal fruit-flavored products. First, data collection methods need to be improved. Future efforts should ensure consistent and comprehensive data coverage for all target product categories and flavors from the start, ideally spanning 2–3 years to enhance reliability. Second, standardizing product measurement units is essential. Converting prices to uniform units, such as per 100 grams or 100 milliliters, would reduce data heterogeneity and enable better comparisons. Efforts should also focus on unifying units within each food category, resolving inconsistencies through manual data supplementation, or improved web-scraping techniques. For example, fruit prices could be standardized per 100 grams, while beverages could be per 100 milliliters. Products without detailed unit information, like “boxed fruits” or “cases of strawberry juice,” could be supplemented using manual research or advanced scraping methods. Finally, incorporating additional factors such as regional variations and promotional activities could provide a clearer understanding of the drivers behind price changes.  We can also collect consumers' consumption preferences for seasonal fruits and their flavored products through questionnaires. With these improvements, future studies could develop more robust models to better forecast the dynamics of seasonal fruit-flavored product prices.
+Future research should address the limitations of this study to improve the accuracy of price change models for seasonal fruit-flavored products. First, data collection methods need to be improved. Future efforts should ensure consistent data coverage for all target product categories and flavors from the start, ideally spanning 2–3 years to enhance reliability. Second, standardizing product measurement units is essential. Converting prices to uniform units, such as per 100 grams or 100 milliliters, would reduce data heterogeneity and enable better comparisons. Efforts should also focus on unifying units within each food category, resolving inconsistencies through manual data supplementation, or improved web-scraping techniques. For example, fruit prices could be standardized per 100 grams, while beverages could be per 100 milliliters. Products without detailed unit information, like “boxed fruits” or “cases of strawberry juice,” could be supplemented using manual research or advanced scraping methods. Finally, incorporating additional factors such as regional variations and promotional activities could provide a clearer understanding of the drivers behind price changes.  We can also collect consumers' consumption preferences for seasonal fruits and their flavored products through questionnaires. With these improvements, future studies could develop more robust models to better forecast the dynamics of seasonal fruit-flavored product prices.
 
 To build on the existing work with linear models and Random Forest, future studies could explore alternative machine learning algorithms that better capture the complexities of flavored product price dynamics. Gradient Boosting Machines (GBMs), such as XGBoost or LightGBM, could be particularly effective, as they excel in handling structured data, capturing non-linear relationships, and minimizing overfitting. Additionally, Support Vector Machines (SVMs) could be applied, particularly for classification tasks, such as predicting the likelihood of price increases or decreases based on features like flavor and category.
 
@@ -823,7 +841,7 @@ We aim to understand price fluctuations of seasonal fruit-flavored products duri
 
 ## Budget Allocation
 
-We assume we will have a budget of $200,000, which will be used for data collection, effective sampling, and comprehensive analysis. The proposed budget breakdown is as follows:
+We assume we will have a budget of $200,000, which will be used for data collection, effective sampling, and better analysis. The proposed budget breakdown is as follows:
 
 The survey platform costs	$30,000	
 Subscription fees for Qualtrics or Google Forms for dynamic and customizable surveys.
@@ -857,7 +875,7 @@ We will also collect observational data from 30 retailers, including supermarket
 
 To gather a representative and diverse dataset, we will use a multi-mode recruitment strategy. Online surveys will be distributed via platforms like Google Forms or Qualtrics, targeting food enthusiasts and regular grocery shoppers through social media and email lists. A questionnaire is available at the following link: [https://forms.gle/gGy5CFKF33MCRm5ZA](https://forms.gle/gGy5CFKF33MCRm5ZA). In-store recruitment will involve flyers and QR codes in participating retail stores to directly engage shoppers. To boost participation, each respondent will receive a $20 digital gift card upon completing the survey. Data validation will include automated checks for incomplete or inconsistent responses, and manual review of open-ended answers to identify irrelevant or duplicate entries.
 
-Observational data will provide real-world insights into price trends and product availability. Weekly price monitoring will track the prices of targeted products, while stock availability will be checked to identify stockouts or limited supply during off-seasons. Observers will also record promotional campaigns and discounts to account for pricing influences.
+Observational data will provide customer preferences into price trends and product availability. Weekly price monitoring will track the prices of targeted products, while stock availability will be checked to identify stockouts or limited supply during off-seasons. Observers will also record promotional campaigns and discounts to account for pricing influences.
 
 
 ## Analysis and Modeling

@@ -84,14 +84,14 @@ test_avg_prices(analysis_strawberry_data)
 #### Test for Rain Data ####
 
 # Test: Check if the dataset has 6 rows and 4 columns
-if (nrow(analysis_rain_data) == 5 && ncol(analysis_rain_data) == 4) {
+if (nrow(analysis_rain_data) == 6 && ncol(analysis_rain_data) == 4) {
   cat("Test Passed: analysis_rain_data has 6 rows and 4 columns.")
 } else {
   stop(paste("Test Failed: analysis_rain_data has", nrow(test_rain_data), "rows and", ncol(test_rain_data), "columns; expected 6 rows and 4 columns."))
 }
 
 # Test: Check if the 'month' column contains 6, 7, 8, 9, 10, and 11
-expected_months <- 7:11
+expected_months <- 6:11
 if (all(sort(analysis_rain_data$month) == expected_months)) {
   cat("Test Passed: analysis_rain_data 'month' column contains the expected months: 6, 7, 8, 9, 10, 11.")
 } else {
